@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
     console.log(`✓ All ${uploadedFiles.length} files uploaded successfully`);
 
     // Use Step Function ARN from environment
-    const stateMachineArn = process.env.STEP_FUNCTION_ARN;
+    const stateMachineArn = process.env.STEP_FUNCTION_ARN || 'arn:aws:states:us-east-1:153717966029:stateMachine:nih_pdf_intake';
     if (!stateMachineArn) {
       return NextResponse.json(
         { error: 'Step Function ARN not configured. Please set STEP_FUNCTION_ARN environment variable.' },
