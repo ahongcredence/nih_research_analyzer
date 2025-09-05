@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get S3 bucket name
-    const s3BucketName = process.env.S3_BUCKET_NAME;
+    const s3BucketName = process.env.S3_BUCKET_NAME || 'nih-uploaded-docs';
     if (!s3BucketName) {
       return NextResponse.json(
         { error: 'S3 bucket not configured. Please set S3_BUCKET_NAME environment variable.' },
