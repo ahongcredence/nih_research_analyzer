@@ -1,103 +1,111 @@
-import Image from "next/image";
+"use client";
+import { Button } from "@/app/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { FileText, Shield, BarChart3, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const router = useRouter();
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-slate-70">
+      {/* Hero Section */}
+      <section className="container mx-auto px-4 py-16 sm:py-24">
+        <div className="mx-auto max-w-4xl text-center">
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+            Agentic Research Analysis
+          </h1>
+          <p className="mt-6 text-lg text-slate-600 sm:text-xl">
+            AI agents cross-reference uploaded documents against a comprehensive rubric. 
+            Generate detailed reports with systematic analysis across multiple research papers.
+          </p>
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
+            <Button size="lg" className="w-full sm:w-auto" onClick={() => router.push("/upload")}>
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Documents
+            </Button>
+            <Button variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => router.push("/report-demo")}>
+              <FileText className="mr-2 h-4 w-4" />
+              View Sample Report
+            </Button>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      {/* Features Grid */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-slate-700" />
+                  </div>
+                  <CardTitle className="text-lg text-slate-900">Multi-Document Analysis</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-slate-600">
+                  Upload multiple research papers for simultaneous analysis. 
+                  AI agents cross-reference each document against comprehensive rubric.
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <Shield className="h-5 w-5 text-slate-700" />
+                  </div>
+                  <CardTitle className="text-lg text-slate-900">Bias Detection</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-slate-600">
+                  AI agents systematically evaluate documents using a structured rubric 
+                  covering confirmation bias, selection bias, publication bias, and more.
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <BarChart3 className="h-5 w-5 text-slate-700" />
+                  </div>
+                  <CardTitle className="text-lg text-slate-900">Comprehensive Reports</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-slate-600">
+                  Generate comprehensive reports showing rubric-based analysis 
+                  with cross-document comparisons and sources.
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="container mx-auto px-4 py-16">
+        <Card className="mx-auto max-w-2xl text-center bg-white border-slate-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-2xl text-slate-900">Ready to analyze your research?</CardTitle>
+            <CardDescription className="text-base text-slate-600">
+              Upload your research documents and get started with bias analysis in minutes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button size="lg" className="w-full sm:w-auto" onClick={() => router.push("/upload")}>
+              <Upload className="mr-2 h-4 w-4" />
+              Start Analysis
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
