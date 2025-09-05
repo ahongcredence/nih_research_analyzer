@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 
-// Initialize AWS clients - credentials will be automatically provided by IAM role in Amplify
+// Initialize AWS clients - use credential provider chain for Amplify
 const sfnClient = new SFNClient({
   region: process.env.REGION || 'us-east-1',
+  credentials: fromNodeProviderChain(),
 });
 
 const s3Client = new S3Client({
   region: process.env.REGION || 'us-east-1',
+  credentials: fromNodeProviderChain(),
 });
 
 export async function POST(request: NextRequest) {
@@ -126,9 +128,9 @@ export async function POST(request: NextRequest) {
           name: s3Error instanceof Error ? s3Error.name : 'Unknown',
           message: s3Error instanceof Error ? s3Error.message : 'Unknown S3 error',
           stack: s3Error instanceof Error ? s3Error.stack : undefined,
-          code: (s3Error as any)?.code,
-          statusCode: (s3Error as any)?.$metadata?.httpStatusCode,
-          requestId: (s3Error as any)?.$metadata?.requestId,
+          code: (s3Error as { code?: string })?.code,
+          statusCode: (s3Error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode,
+          requestId: (s3Error as { $metadata?: { requestId?: string } })?.$metadata?.requestId,
         });
         
         const errorMessage = s3Error instanceof Error ? s3Error.message : 'Unknown S3 error';
