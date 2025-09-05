@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 
-// Initialize AWS clients - use credential provider chain for Amplify
+// Initialize AWS clients - use default credential chain for Amplify
 const sfnClient = new SFNClient({
   region: process.env.REGION || 'us-east-1',
-  credentials: fromNodeProviderChain(),
 });
 
 const s3Client = new S3Client({
   region: process.env.REGION || 'us-east-1',
-  credentials: fromNodeProviderChain(),
 });
 
 export async function POST(request: NextRequest) {

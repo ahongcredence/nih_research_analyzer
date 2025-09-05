@@ -3,12 +3,12 @@ frontend:
   phases:
     preBuild:
       commands:
-        - echo "Installing dependencies..."
         - npm ci
     build:
       commands:
-        - echo "S3_BUCKET_NAME=$S3_BUCKET_NAME"  
-        - echo "STEP_FUNCTION_ARN=$STEP_FUNCTION_ARN"  
+        - env | grep -e S3_BUCKET_NAME >> .env.production
+        - env | grep -e STEP_FUNCTION_ARN >> .env.production
+        - env | grep -e NEXT_PUBLIC_ >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SFNClient, DescribeExecutionCommand } from '@aws-sdk/client-sfn';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
-// Initialize AWS clients - credentials will be automatically provided by IAM role in Amplify
+// Initialize AWS clients - use default credential chain for Amplify
 const sfnClient = new SFNClient({
   region: process.env.REGION || 'us-east-1',
 });
