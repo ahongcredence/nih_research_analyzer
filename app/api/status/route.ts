@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     if (sessionId && !executionArn) {
       // For now, we'll construct the execution ARN based on the sessionId
       // This assumes the execution name matches the sessionId
-      const stateMachineArn = process.env.STEP_FUNCTION_ARN;
+      const stateMachineArn = process.env.STEP_FUNCTION_ARN || 'arn:aws:states:us-east-1:153717966029:stateMachine:nih_pdf_intake';
       if (!stateMachineArn) {
         return NextResponse.json(
           { error: 'Step Function ARN not configured' },
