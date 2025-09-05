@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
     // Debug environment configuration
     console.log('Environment Configuration:', {
       region: region,
-      S3_BUCKET_NAME: process.env.S3_BUCKET_NAME ? 'SET' : 'MISSING',
-      STEP_FUNCTION_ARN: process.env.STEP_FUNCTION_ARN ? 'SET' : 'MISSING',
-      AWS_REGION: process.env.AWS_REGION || 'NOT_SET',
-      REGION: process.env.REGION || 'NOT_SET',
+      S3_BUCKET_NAME: process.env.S3_BUCKET_NAME || 'nih-uploaded-docs' ? 'SET' : 'MISSING',
+      STEP_FUNCTION_ARN: process.env.STEP_FUNCTION_ARN || 'arn:aws:states:us-east-1:153717966029:stateMachine:nih_pdf_intake' ? 'SET' : 'MISSING',
+      AWS_REGION: process.env.AWS_REGION || 'us-east-1' || 'NOT_SET',
+      REGION: process.env.REGION || 'us-east-1' || 'NOT_SET',
       usingIAMRole: true,
     });
 

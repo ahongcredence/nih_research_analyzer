@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
     let additionalResults = null;
     if (isComplete && sessionId) {
       try {
-        const s3BucketName = process.env.S3_BUCKET_NAME;
+        const s3BucketName = process.env.S3_BUCKET_NAME || 'nih-uploaded-docs';
         if (s3BucketName) {
           // Try to get the final report
           try {
