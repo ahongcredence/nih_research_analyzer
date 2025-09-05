@@ -122,6 +122,15 @@ export async function POST(request: NextRequest) {
         
       } catch (s3Error: unknown) {
         console.error(`✗ Failed to upload ${file.name} to S3:`, s3Error);
+        console.error('S3 Error details:', {
+          name: s3Error instanceof Error ? s3Error.name : 'Unknown',
+          message: s3Error instanceof Error ? s3Error.message : 'Unknown S3 error',
+          stack: s3Error instanceof Error ? s3Error.stack : undefined,
+          code: (s3Error as any)?.code,
+          statusCode: (s3Error as any)?.$metadata?.httpStatusCode,
+          requestId: (s3Error as any)?.$metadata?.requestId,
+        });
+        
         const errorMessage = s3Error instanceof Error ? s3Error.message : 'Unknown S3 error';
         uploadErrors.push(`Failed to upload ${file.name}: ${errorMessage}`);
         
