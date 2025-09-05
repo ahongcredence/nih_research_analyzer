@@ -2,21 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 
-// Initialize AWS clients with credentials from environment
+// Initialize AWS clients - credentials will be automatically provided by IAM role in Amplify
 const sfnClient = new SFNClient({
-  region: process.env.AWS_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
+  region: process.env.REGION || 'us-east-1',
 });
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
+  region: process.env.REGION || 'us-east-1',
 });
 
 export async function POST(request: NextRequest) {
