@@ -23,7 +23,7 @@ export function FileUpload({
   const [error, setError] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const validateFile = (file: File): string | null => {
+  const validateFile = useCallback((file: File): string | null => {
     // Check file size
     if (file.size > maxSize * 1024 * 1024) {
       return `File "${file.name}" is too large. Maximum size is ${maxSize}MB.`;
@@ -36,7 +36,7 @@ export function FileUpload({
     }
 
     return null;
-  };
+  }, [maxSize, acceptedTypes]);
 
   const handleFiles = useCallback((newFiles: FileList | File[]) => {
     setError("");
@@ -69,7 +69,7 @@ export function FileUpload({
       setFiles(updatedFiles);
       onFilesUploaded(updatedFiles);
     }
-  }, [files, maxFiles, maxSize, acceptedTypes, onFilesUploaded]);
+  }, [files, maxFiles, onFilesUploaded, validateFile]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();

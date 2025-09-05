@@ -21,7 +21,11 @@ interface StudyAnalysis {
     weaknesses?: string[];
   };
   jbiQuestions?: JBIQuestion[];
-  assessmentMetadata?: any;
+  assessmentMetadata?: {
+    confidence: number;
+    processingTime: string;
+    modelVersion: string;
+  };
 }
 
 interface ReportData {
@@ -193,6 +197,10 @@ class PDFReportGenerator {
 
       console.log('PDF Export - Report data keys:', Object.keys(reportData));
       console.log('PDF Export - Report metadata:', reportData.reportMetadata);
+      console.log('PDF Export - Executive summary:', reportData.executiveSummary);
+      console.log('PDF Export - Summary statistics:', reportData.summaryStatistics);
+      console.log('PDF Export - Detailed study assessments count:', reportData.detailedStudyAssessments?.length || 0);
+      console.log('PDF Export - Original classifications count:', reportData.originalClassifications?.length || 0);
 
       // Title Page
       this.addHeader('NIH Research Analyzer', 20, true);
@@ -202,8 +210,8 @@ class PDFReportGenerator {
       // Safe access to reportMetadata with fallbacks
       const metadata = reportData.reportMetadata || {};
       this.addText(`Session ID: ${metadata.sessionId || 'Unknown'}`, 10, true);
-      this.addText(`Generated: ${metadata.generatedAt ? new Date(metadata.generatedAt).toLocaleString() : 'Unknown'}`, 10);
-      this.addText(`Report Type: ${metadata.reportType || 'Unknown'}`, 10);
+      this.addText(`Generated: ${metadata.generatedAt ? new Date(metadata.generatedAt).toLocaleString() : new Date().toLocaleString()}`, 10);
+      this.addText(`Report Type: ${metadata.reportType || 'JBI Bias Assessment'}`, 10);
       this.addText(`AI Model: ${metadata.bedrockModel || 'Unknown'}`, 10);
       
       this.addPageBreak();
@@ -269,57 +277,71 @@ class PDFReportGenerator {
       this.addHeader('Detailed Study Assessments', 16, true);
       
       const studies = reportData.detailedStudyAssessments || [];
-      studies.forEach((study, index) => {
-        this.addSubHeader(`Study ${index + 1}: ${study.fileName || 'Unknown File'}`, 12);
-        
-        this.addText(`Study Type: ${study.studyType || 'Unknown'}`, 10, true);
-        
-        const assessment = study.overallAssessment || {};
-        this.addText(`Bias Rating: ${assessment.biasRating || 'Unknown'}`, 10, true);
-        this.addText(`Recommendation: ${assessment.recommendation || 'Unknown'}`, 10, true);
-        
-        // Get confidence from original classifications
-        const classification = reportData.originalClassifications?.find(c => c.fileName === study.fileName);
-        if (classification && classification.confidence) {
-          this.addText(`Confidence: ${Math.round(classification.confidence * 100)}%`, 10, true);
-        }
-        
-        this.currentY += 3;
-        
-        this.addSubHeader('Overall Assessment');
-        this.addText(assessment.summaryReasoning || 'No assessment available', 10);
-        
-        this.addSubHeader('Strengths');
-        this.addBulletList(assessment.strengths || [], 9);
-        
-        this.addSubHeader('Weaknesses');
-        this.addBulletList(assessment.weaknesses || [], 9);
-        
-        this.addSubHeader('JBI Question Analysis');
-        const questions = study.jbiQuestions || [];
-        questions.forEach((question, qIndex) => {
-          this.addText(`Q${question.number}: ${question.question}`, 9, true);
-          this.addText(`Answer: ${question.answer}`, 9, true);
-          this.addText(`Reasoning: ${question.reasoning}`, 9);
+      console.log('PDF Export - Processing studies:', studies.length);
+      
+      if (studies.length === 0) {
+        this.addText('No detailed study assessments available.', 10);
+      } else {
+        studies.forEach((study, index) => {
+          console.log(`PDF Export - Processing study ${index + 1}:`, study);
           
-          if (question.evidence && question.evidence.length > 0) {
-            this.addText('Evidence:', 9, true);
-            question.evidence.forEach(evidence => {
-              this.addText(`• ${evidence}`, 8);
-            });
-          }
+          this.addSubHeader(`Study ${index + 1}: ${study.fileName || 'Unknown File'}`, 12);
           
-          if (question.biasImplication) {
-            this.addText(`Bias Implication: ${question.biasImplication}`, 9);
+          this.addText(`Study Type: ${study.studyType || 'Unknown'}`, 10, true);
+          
+          const assessment = study.overallAssessment || {};
+          this.addText(`Bias Rating: ${assessment.biasRating || 'Unknown'}`, 10, true);
+          this.addText(`Recommendation: ${assessment.recommendation || 'Unknown'}`, 10, true);
+          
+          // Get confidence from original classifications
+          const classification = reportData.originalClassifications?.find(c => c.fileName === study.fileName);
+          if (classification && classification.confidence) {
+            this.addText(`Confidence: ${Math.round(classification.confidence * 100)}%`, 10, true);
           }
           
           this.currentY += 3;
+          
+          this.addSubHeader('Overall Assessment');
+          this.addText(assessment.summaryReasoning || 'No assessment available', 10);
+          
+          this.addSubHeader('Strengths');
+          this.addBulletList(assessment.strengths || [], 9);
+          
+          this.addSubHeader('Weaknesses');
+          this.addBulletList(assessment.weaknesses || [], 9);
+          
+          this.addSubHeader('JBI Question Analysis');
+          const questions = study.jbiQuestions || [];
+          console.log(`PDF Export - Processing ${questions.length} questions for study ${index + 1}`);
+          
+          if (questions.length === 0) {
+            this.addText('No JBI questions available for this study.', 9);
+          } else {
+            questions.forEach((question) => {
+              this.addText(`Q${question.number}: ${question.question}`, 9, true);
+              this.addText(`Answer: ${question.answer}`, 9, true);
+              this.addText(`Reasoning: ${question.reasoning}`, 9);
+              
+              if (question.evidence && question.evidence.length > 0) {
+                this.addText('Evidence:', 9, true);
+                question.evidence.forEach(evidence => {
+                  this.addText(`• ${evidence}`, 8);
+                });
+              }
+              
+              if (question.biasImplication) {
+                this.addText(`Bias Implication: ${question.biasImplication}`, 9);
+              }
+              
+              this.currentY += 3;
+            });
+          }
+          
+          if (index < studies.length - 1) {
+            this.addPageBreak();
+          }
         });
-        
-        if (index < studies.length - 1) {
-          this.addPageBreak();
-        }
-      });
+      }
 
       this.addPageBreak();
 
@@ -374,24 +396,32 @@ class PDFReportGenerator {
   }
 }
 
-export async function exportReportToPDF(reportData: ReportData): Promise<void> {
+export async function exportReportToPDF(reportData: ReportData | string | Record<string, unknown>): Promise<void> {
   try {
     if (!reportData) {
       throw new Error('No report data provided');
     }
 
     console.log('PDF Export - Input data type:', typeof reportData);
+    console.log('PDF Export - Input data keys:', typeof reportData === 'object' ? Object.keys(reportData) : 'N/A');
     console.log('PDF Export - Input data:', reportData);
     
     // Handle case where reportData might be a string
-    let parsedData = reportData;
+    let parsedData: ReportData;
     if (typeof reportData === 'string') {
       try {
-        parsedData = JSON.parse(reportData);
-        console.log('PDF Export - Parsed string data:', parsedData);
+        const rawData = JSON.parse(reportData);
+        parsedData = normalizeReportData(rawData);
+        console.log('PDF Export - Parsed and normalized string data:', parsedData);
       } catch (parseError) {
+        console.error('PDF Export - JSON parse error:', parseError);
         throw new Error('Report data is a string but cannot be parsed as JSON');
       }
+    } else if (typeof reportData === 'object') {
+      parsedData = normalizeReportData(reportData as Record<string, unknown>);
+      console.log('PDF Export - Normalized object data:', parsedData);
+    } else {
+      throw new Error('Invalid report data type');
     }
 
     const generator = new PDFReportGenerator();
@@ -405,6 +435,56 @@ export async function exportReportToPDF(reportData: ReportData): Promise<void> {
     console.error('PDF export error:', error);
     throw error;
   }
+}
+
+// Helper function to normalize data structure
+function normalizeReportData(data: Record<string, unknown>): ReportData {
+  console.log('PDF Export - Normalizing data structure:', data);
+  
+  // Ensure we have the basic structure
+  const normalized: ReportData = {
+    reportMetadata: {
+      sessionId: (data.reportMetadata as Record<string, unknown>)?.sessionId as string || (data.sessionId as string) || 'Unknown',
+      s3Bucket: (data.reportMetadata as Record<string, unknown>)?.s3Bucket as string || (data.s3Bucket as string) || 'Unknown',
+      generatedAt: (data.reportMetadata as Record<string, unknown>)?.generatedAt as string || (data.generatedAt as string) || new Date().toISOString(),
+      reportType: (data.reportMetadata as Record<string, unknown>)?.reportType as string || (data.reportType as string) || 'JBI Bias Assessment',
+      lambdaRequestId: (data.reportMetadata as Record<string, unknown>)?.lambdaRequestId as string || (data.lambdaRequestId as string) || 'Unknown',
+      bedrockModel: (data.reportMetadata as Record<string, unknown>)?.bedrockModel as string || (data.bedrockModel as string) || 'Unknown'
+    },
+    executiveSummary: {
+      overallFindings: (data.executiveSummary as Record<string, unknown>)?.overallFindings as string || (data.overallFindings as string) || 'No findings available',
+      inclusionRate: (data.executiveSummary as Record<string, unknown>)?.inclusionRate as string || (data.inclusionRate as string) || 'Unknown',
+      majorConcerns: (data.executiveSummary as Record<string, unknown>)?.majorConcerns as string[] || (data.majorConcerns as string[]) || [],
+      keyStrengths: (data.executiveSummary as Record<string, unknown>)?.keyStrengths as string[] || (data.keyStrengths as string[]) || [],
+      assessmentConfidence: (data.executiveSummary as Record<string, unknown>)?.assessmentConfidence as string || (data.assessmentConfidence as string) || 'Unknown',
+      nextSteps: (data.executiveSummary as Record<string, unknown>)?.nextSteps as string[] || (data.nextSteps as string[]) || []
+    },
+    summaryStatistics: {
+      totalStudies: (data.summaryStatistics as Record<string, unknown>)?.totalStudies as number || (data.totalStudies as number) || 0,
+      successfulAnalyses: (data.summaryStatistics as Record<string, unknown>)?.successfulAnalyses as number || (data.successfulAnalyses as number) || 0,
+      failedAnalyses: (data.summaryStatistics as Record<string, unknown>)?.failedAnalyses as number || (data.failedAnalyses as number) || 0,
+      studyTypeBreakdown: (data.summaryStatistics as Record<string, unknown>)?.studyTypeBreakdown as Record<string, number> || (data.studyTypeBreakdown as Record<string, number>) || {},
+      biasRatingDistribution: (data.summaryStatistics as Record<string, unknown>)?.biasRatingDistribution as Record<string, number> || (data.biasRatingDistribution as Record<string, number>) || {},
+      recommendationDistribution: (data.summaryStatistics as Record<string, unknown>)?.recommendationDistribution as Record<string, number> || (data.recommendationDistribution as Record<string, number>) || {},
+      inclusionRate: (data.summaryStatistics as Record<string, unknown>)?.inclusionRate as string || (data.inclusionRate as string) || 'Unknown'
+    },
+    detailedStudyAssessments: ((data.detailedStudyAssessments as unknown[]) || (data.studyAssessments as unknown[]) || []) as ReportData['detailedStudyAssessments'],
+    recommendationsByCategory: {
+      highPriorityInclusions: (data.recommendationsByCategory as Record<string, unknown>)?.highPriorityInclusions as unknown[] || [],
+      conditionalInclusions: (data.recommendationsByCategory as Record<string, unknown>)?.conditionalInclusions as unknown[] || [],
+      needsFurtherReview: (data.recommendationsByCategory as Record<string, unknown>)?.needsFurtherReview as unknown[] || [],
+      clearExclusions: (data.recommendationsByCategory as Record<string, unknown>)?.clearExclusions as unknown[] || []
+    } as ReportData['recommendationsByCategory'],
+    originalClassifications: ((data.originalClassifications as unknown[]) || (data.classifications as unknown[]) || []) as ReportData['originalClassifications']
+  };
+
+  console.log('PDF Export - Normalized data keys:', Object.keys(normalized));
+  console.log('PDF Export - Has reportMetadata:', !!normalized.reportMetadata);
+  console.log('PDF Export - Has executiveSummary:', !!normalized.executiveSummary);
+  console.log('PDF Export - Has detailedStudyAssessments:', !!normalized.detailedStudyAssessments);
+  console.log('PDF Export - Study assessments count:', normalized.detailedStudyAssessments?.length || 0);
+
+  return normalized;
 }
 
 // Keep the HTML fallback for compatibility

@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
                 reportLocation: `s3://${s3BucketName}/${reportKey}`,
               };
             }
-          } catch (reportError) {
+          } catch {
             // Report not ready yet, that's okay
             console.log('Final report not yet available');
           }
@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
                 classificationLocation: `s3://${s3BucketName}/${classificationKey}`,
               };
             }
-          } catch (classificationError) {
+          } catch {
             // Classifications not ready yet, that's okay
             console.log('Classification results not yet available');
           }
@@ -192,23 +192,25 @@ export async function GET(request: NextRequest) {
       lastUpdated: new Date().toISOString(),
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Status check error:', error);
     
     let errorMessage = 'Failed to check analysis status';
     
-    if (error.name === 'ExecutionDoesNotExist') {
-      errorMessage = 'Analysis session not found';
-    } else if (error.name === 'AccessDeniedException') {
-      errorMessage = 'Access denied. Please check your AWS credentials.';
-    } else if (error.name === 'InvalidParameterValueException') {
-      errorMessage = 'Invalid execution ARN provided';
+    if (error instanceof Error) {
+      if (error.name === 'ExecutionDoesNotExist') {
+        errorMessage = 'Analysis session not found';
+      } else if (error.name === 'AccessDeniedException') {
+        errorMessage = 'Access denied. Please check your AWS credentials.';
+      } else if (error.name === 'InvalidParameterValueException') {
+        errorMessage = 'Invalid execution ARN provided';
+      }
     }
 
     return NextResponse.json(
       { 
         error: errorMessage,
-        details: error.message,
+        details: error instanceof Error ? error.message : 'Unknown error',
         hasError: true,
         currentPhase: 'error',
         phaseProgress: 0,

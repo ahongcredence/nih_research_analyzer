@@ -703,7 +703,6 @@ export default function SampleReportPage() {
           {/* Report Viewer */}
           <ReportViewer 
             reportData={sampleReportData} 
-            onExportPDF={handleExportPDF}
           />
 
           {/* Additional Information */}

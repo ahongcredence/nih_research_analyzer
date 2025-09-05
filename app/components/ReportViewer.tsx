@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { 
   FileText, 
-  Download, 
   ChevronDown, 
   ChevronRight, 
-  CheckCircle, 
   AlertTriangle, 
   XCircle,
   BarChart3,
@@ -16,13 +14,9 @@ import {
   Shield,
   TrendingUp,
   Clock,
-  ExternalLink,
   Target,
-  Brain,
-  BookOpen,
-  Zap,
-  HelpCircle,
-  Info
+  Cpu,
+  BookOpen
 } from "lucide-react";
 
 interface JBIQuestion {
@@ -35,22 +29,27 @@ interface JBIQuestion {
   confidence?: number;
 }
 
-interface StudyAnalysis {
-  status: string;
+interface Classification {
+  fileName: string;
+  studyType: string;
+  confidence: number;
+  reasoning: string;
+}
+
+interface StudyRecommendation {
+  fileName: string;
   overallAssessment: {
     biasRating: string;
     recommendation: string;
-    strengths: string[];
-    weaknesses: string[];
-    summaryReasoning: string;
   };
-  fileName: string;
-  studyType: string;
-  recommendation: string;
-  sessionId: string;
-  jbiQuestions: JBIQuestion[];
-  biasRating: string;
 }
+
+interface AssessmentMetadata {
+  confidence: number;
+  processingTime: string;
+  modelVersion: string;
+}
+
 
 interface ReportData {
   reportMetadata: {
@@ -90,24 +89,24 @@ interface ReportData {
       weaknesses: string[];
     };
     jbiQuestions: JBIQuestion[];
-    assessmentMetadata: any;
+    assessmentMetadata: AssessmentMetadata;
     errorDetails?: string;
   }>;
   recommendationsByCategory: {
-    highPriorityInclusions: any[];
-    conditionalInclusions: any[];
-    needsFurtherReview: any[];
-    clearExclusions: any[];
+    highPriorityInclusions: StudyRecommendation[];
+    conditionalInclusions: StudyRecommendation[];
+    needsFurtherReview: StudyRecommendation[];
+    clearExclusions: StudyRecommendation[];
   };
-  originalClassifications: any[];
+  originalClassifications: Classification[];
 }
 
 interface ReportViewerProps {
-  reportData: ReportData | string;
-  onExportPDF?: () => void;
+  reportData: ReportData | string | Record<string, unknown>;
+  sessionId?: string;
 }
 
-export default function ReportViewer({ reportData, onExportPDF }: ReportViewerProps) {
+export default function ReportViewer({ reportData, sessionId }: ReportViewerProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['question-analysis']));
   const [expandedStudies, setExpandedStudies] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
@@ -117,9 +116,12 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
   
   try {
     if (typeof reportData === 'string') {
-      parsedReportData = JSON.parse(reportData);
+      parsedReportData = JSON.parse(reportData) as ReportData;
+    } else if (reportData && typeof reportData === 'object') {
+      // Normalize the data structure to match our interface
+      parsedReportData = normalizeReportDataForViewer(reportData as Record<string, unknown>);
     } else {
-      parsedReportData = reportData;
+      throw new Error('Invalid report data type');
     }
   } catch (error) {
     console.error('ReportViewer: Failed to parse report data:', error);
@@ -127,14 +129,63 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
       <div className="p-8 text-center">
         <div className="text-red-600 mb-4">Error: Invalid report data format</div>
         <p className="text-slate-600">The report data could not be parsed. Please try refreshing the page.</p>
+        <details className="mt-4 text-left">
+          <summary className="cursor-pointer text-sm text-slate-500">Debug Info</summary>
+          <pre className="mt-2 text-xs bg-slate-100 p-2 rounded overflow-auto">
+            {JSON.stringify(reportData, null, 2)}
+          </pre>
+        </details>
       </div>
     );
+  }
+
+  // Helper function to normalize data structure for ReportViewer
+  function normalizeReportDataForViewer(data: Record<string, unknown>): ReportData {
+    console.log('ReportViewer: Normalizing data structure:', data);
+    
+    return {
+      reportMetadata: {
+        sessionId: (data.reportMetadata as Record<string, unknown>)?.sessionId as string || (data.sessionId as string) || 'Unknown',
+        s3Bucket: (data.reportMetadata as Record<string, unknown>)?.s3Bucket as string || (data.s3Bucket as string) || 'Unknown',
+        generatedAt: (data.reportMetadata as Record<string, unknown>)?.generatedAt as string || (data.generatedAt as string) || new Date().toISOString(),
+        reportType: (data.reportMetadata as Record<string, unknown>)?.reportType as string || (data.reportType as string) || 'JBI Bias Assessment',
+        lambdaRequestId: (data.reportMetadata as Record<string, unknown>)?.lambdaRequestId as string || (data.lambdaRequestId as string) || 'Unknown',
+        bedrockModel: (data.reportMetadata as Record<string, unknown>)?.bedrockModel as string || (data.bedrockModel as string) || 'Unknown'
+      },
+      executiveSummary: {
+        overallFindings: (data.executiveSummary as Record<string, unknown>)?.overallFindings as string || (data.overallFindings as string) || 'No findings available',
+        inclusionRate: (data.executiveSummary as Record<string, unknown>)?.inclusionRate as string || (data.inclusionRate as string) || 'Unknown',
+        majorConcerns: (data.executiveSummary as Record<string, unknown>)?.majorConcerns as string[] || (data.majorConcerns as string[]) || [],
+        keyStrengths: (data.executiveSummary as Record<string, unknown>)?.keyStrengths as string[] || (data.keyStrengths as string[]) || [],
+        assessmentConfidence: (data.executiveSummary as Record<string, unknown>)?.assessmentConfidence as string || (data.assessmentConfidence as string) || 'Unknown',
+        nextSteps: (data.executiveSummary as Record<string, unknown>)?.nextSteps as string[] || (data.nextSteps as string[]) || []
+      },
+      summaryStatistics: {
+        totalStudies: (data.summaryStatistics as Record<string, unknown>)?.totalStudies as number || (data.totalStudies as number) || 0,
+        successfulAnalyses: (data.summaryStatistics as Record<string, unknown>)?.successfulAnalyses as number || (data.successfulAnalyses as number) || 0,
+        failedAnalyses: (data.summaryStatistics as Record<string, unknown>)?.failedAnalyses as number || (data.failedAnalyses as number) || 0,
+        studyTypeBreakdown: (data.summaryStatistics as Record<string, unknown>)?.studyTypeBreakdown as Record<string, number> || (data.studyTypeBreakdown as Record<string, number>) || {},
+        biasRatingDistribution: (data.summaryStatistics as Record<string, unknown>)?.biasRatingDistribution as Record<string, number> || (data.biasRatingDistribution as Record<string, number>) || {},
+        recommendationDistribution: (data.summaryStatistics as Record<string, unknown>)?.recommendationDistribution as Record<string, number> || (data.recommendationDistribution as Record<string, number>) || {},
+        inclusionRate: (data.summaryStatistics as Record<string, unknown>)?.inclusionRate as string || (data.inclusionRate as string) || 'Unknown'
+      },
+      detailedStudyAssessments: ((data.detailedStudyAssessments as unknown[]) || (data.studyAssessments as unknown[]) || []) as ReportData['detailedStudyAssessments'],
+      recommendationsByCategory: {
+        highPriorityInclusions: (data.recommendationsByCategory as Record<string, unknown>)?.highPriorityInclusions as unknown[] || [],
+        conditionalInclusions: (data.recommendationsByCategory as Record<string, unknown>)?.conditionalInclusions as unknown[] || [],
+        needsFurtherReview: (data.recommendationsByCategory as Record<string, unknown>)?.needsFurtherReview as unknown[] || [],
+        clearExclusions: (data.recommendationsByCategory as Record<string, unknown>)?.clearExclusions as unknown[] || []
+      } as ReportData['recommendationsByCategory'],
+      originalClassifications: ((data.originalClassifications as unknown[]) || (data.classifications as unknown[]) || []) as ReportData['originalClassifications']
+    };
   }
 
   // Debug logging
   console.log('ReportViewer received data type:', typeof reportData);
   console.log('ReportViewer received data:', reportData);
   console.log('ReportViewer parsed data:', parsedReportData);
+  console.log('ReportViewer parsed data keys:', Object.keys(parsedReportData || {}));
+  console.log('ReportViewer has reportMetadata:', 'reportMetadata' in (parsedReportData || {}));
 
   // Add error handling for missing or malformed data
   if (!parsedReportData) {
@@ -147,12 +198,19 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
     );
   }
 
-  if (!parsedReportData.reportMetadata) {
+  if (!parsedReportData || !parsedReportData.reportMetadata) {
     console.error('ReportViewer: Missing reportMetadata in data:', parsedReportData);
+    console.error('ReportViewer: Available keys:', Object.keys(parsedReportData || {}));
     return (
       <div className="p-8 text-center">
         <div className="text-red-600 mb-4">Error: Invalid report data structure</div>
         <p className="text-slate-600">The report data is missing required metadata.</p>
+        <details className="mt-4 text-left">
+          <summary className="cursor-pointer text-sm text-slate-500">Debug Info</summary>
+          <pre className="mt-2 text-xs bg-slate-100 p-2 rounded overflow-auto">
+            {JSON.stringify(parsedReportData, null, 2)}
+          </pre>
+        </details>
       </div>
     );
   }
@@ -187,23 +245,6 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
     setExpandedQuestions(newExpanded);
   };
 
-  const getBiasRatingColor = (rating: string) => {
-    switch (rating.toLowerCase()) {
-      case 'low': return 'text-green-600 bg-green-100 border-green-200';
-      case 'moderate': return 'text-yellow-600 bg-yellow-100 border-yellow-200';
-      case 'high': return 'text-red-600 bg-red-100 border-red-200';
-      default: return 'text-slate-600 bg-slate-100 border-slate-200';
-    }
-  };
-
-  const getRecommendationColor = (recommendation: string) => {
-    switch (recommendation.toLowerCase()) {
-      case 'include': return 'text-green-600 bg-green-100 border-green-200';
-      case 'exclude': return 'text-red-600 bg-red-100 border-red-200';
-      case 'seek further info': return 'text-yellow-600 bg-yellow-100 border-yellow-200';
-      default: return 'text-slate-600 bg-slate-100 border-slate-200';
-    }
-  };
 
   const getAnswerColor = (answer: string) => {
     switch (answer.toLowerCase()) {
@@ -214,14 +255,6 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
     }
   };
 
-  const getBiasRatingIcon = (rating: string) => {
-    switch (rating.toLowerCase()) {
-      case 'low': return <CheckCircle className="h-4 w-4" />;
-      case 'moderate': return <AlertTriangle className="h-4 w-4" />;
-      case 'high': return <XCircle className="h-4 w-4" />;
-      default: return <AlertTriangle className="h-4 w-4" />;
-    }
-  };
 
   const getConfidenceScore = (confidence: number) => {
     return Math.round(confidence * 100);
@@ -230,7 +263,7 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
   const getStudyConfidence = (fileName: string) => {
     if (!parsedReportData?.originalClassifications) return 0.5; // Default fallback
     const classification = parsedReportData.originalClassifications.find(
-      (c: any) => c.fileName === fileName
+      (c: Classification) => c.fileName === fileName
     );
     return classification?.confidence || 0.5;
   };
@@ -239,6 +272,81 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
     if (confidence >= 0.8) return { level: 'High', color: 'text-green-600' };
     if (confidence >= 0.6) return { level: 'Medium', color: 'text-yellow-600' };
     return { level: 'Low', color: 'text-red-600' };
+  };
+
+  const handleDownloadCSV = async () => {
+    if (!parsedReportData) return;
+    
+    try {
+      // Generate CSV data
+      const csvData = generateCSVData(parsedReportData);
+      const blob = new Blob([csvData], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `jbi-bias-assessment-${sessionId || 'report'}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('CSV download failed:', error);
+      alert(`Failed to download CSV. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const generateCSVData = (data: ReportData): string => {
+    const rows: string[] = [];
+    
+    // Add header row
+    rows.push('Study,File Name,Study Type,Bias Rating,Recommendation,Confidence,Overall Assessment,Strengths,Weaknesses,JBI Questions Count');
+    
+    // Add study data
+    const studies = data.detailedStudyAssessments || [];
+    studies.forEach((study, index) => {
+      const assessment = study.overallAssessment || {};
+      const classification = data.originalClassifications?.find(c => c.fileName === study.fileName);
+      const confidence = classification?.confidence ? Math.round(classification.confidence * 100) : 'N/A';
+      
+      // Escape CSV values that contain commas or quotes
+      const escapeCSV = (value: string) => {
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+      
+      const strengths = (assessment.strengths || []).join('; ');
+      const weaknesses = (assessment.weaknesses || []).join('; ');
+      const jbiQuestionsCount = study.jbiQuestions?.length || 0;
+      
+      rows.push([
+        `Study ${index + 1}`,
+        escapeCSV(study.fileName || 'Unknown'),
+        escapeCSV(study.studyType || 'Unknown'),
+        escapeCSV(assessment.biasRating || 'Unknown'),
+        escapeCSV(assessment.recommendation || 'Unknown'),
+        confidence,
+        escapeCSV(assessment.summaryReasoning || 'No assessment available'),
+        escapeCSV(strengths),
+        escapeCSV(weaknesses),
+        jbiQuestionsCount
+      ].join(','));
+    });
+    
+    // Add summary statistics
+    rows.push(''); // Empty row
+    rows.push('SUMMARY STATISTICS');
+    rows.push('Metric,Value');
+    rows.push(`Total Studies,${data.summaryStatistics?.totalStudies || 0}`);
+    rows.push(`Successful Analyses,${data.summaryStatistics?.successfulAnalyses || 0}`);
+    rows.push(`Failed Analyses,${data.summaryStatistics?.failedAnalyses || 0}`);
+    rows.push(`Inclusion Rate,${data.executiveSummary?.inclusionRate || 'Unknown'}`);
+    rows.push(`Assessment Confidence,${data.executiveSummary?.assessmentConfidence || 'Unknown'}`);
+    
+    return rows.join('\n');
   };
 
   return (
@@ -256,9 +364,9 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
                 </CardDescription>
               </div>
             </div>
-            <Button onClick={onExportPDF} size="sm" variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Export PDF
+            <Button onClick={handleDownloadCSV} size="sm" variant="outline">
+              <FileText className="mr-2 h-4 w-4" />
+              Download CSV
             </Button>
           </div>
         </CardHeader>
@@ -343,7 +451,7 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
 
               <div className="flex items-center justify-between p-2 bg-slate-50 rounded text-xs">
                 <div className="flex items-center space-x-1">
-                  <Brain className="h-3 w-3 text-slate-600" />
+                  <Cpu className="h-3 w-3 text-slate-600" />
                   <span className="font-medium text-slate-700">Confidence:</span>
                   <span className="text-slate-600">{parsedReportData.executiveSummary?.assessmentConfidence || 'Unknown'}</span>
                 </div>
@@ -407,7 +515,7 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
                 {/* Overall Assessment Summary */}
                 <div className="mb-3 p-3 bg-slate-50 rounded border-l-2 border-slate-300">
                   <h4 className="font-medium text-slate-900 mb-1 text-xs flex items-center">
-                    <Brain className="h-3 w-3 mr-1" />
+                    <Cpu className="h-3 w-3 mr-1" />
                     Overall Assessment
                   </h4>
                   <p className="text-slate-700 text-xs leading-relaxed">
@@ -475,7 +583,7 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
                                   {/* Reasoning */}
                                   <div>
                                     <div className="flex items-center space-x-1 mb-1">
-                                      <Brain className="h-3 w-3 text-slate-600" />
+                                      <Cpu className="h-3 w-3 text-slate-600" />
                                       <span className="text-xs font-medium text-slate-700">Reasoning</span>
                                     </div>
                                     <p className="text-xs text-slate-600 leading-relaxed pl-4">

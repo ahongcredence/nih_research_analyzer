@@ -128,16 +128,20 @@ export async function POST(request: NextRequest) {
           index: i,
         });
         
-      } catch (s3Error: any) {
+      } catch (s3Error: unknown) {
         console.error(`✗ Failed to upload ${file.name} to S3:`, s3Error);
-        uploadErrors.push(`Failed to upload ${file.name}: ${s3Error.message || 'Unknown S3 error'}`);
+        const errorMessage = s3Error instanceof Error ? s3Error.message : 'Unknown S3 error';
+        uploadErrors.push(`Failed to upload ${file.name}: ${errorMessage}`);
         
         // Return immediately if any upload fails
+        const errorDetails = s3Error instanceof Error ? s3Error.message : 'Unknown S3 error';
+        const errorCode = s3Error instanceof Error ? s3Error.name : 'UnknownError';
+        
         return NextResponse.json(
           { 
             error: `S3 upload failed for ${file.name}`,
-            details: s3Error.message,
-            code: s3Error.name || s3Error.code,
+            details: errorDetails,
+            code: errorCode,
             sessionId
           },
           { status: 500 }
@@ -238,30 +242,32 @@ export async function POST(request: NextRequest) {
       }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Processing error:', error);
     
     // Provide more helpful error messages
     let errorMessage = 'Failed to start PDF processing';
     
-    if (error.name === 'InvalidParameterValueException') {
-      errorMessage = 'Invalid Step Function configuration. Please check your ARN.';
-    } else if (error.name === 'AccessDeniedException') {
-      errorMessage = 'Access denied. Please check your AWS credentials and permissions.';
-    } else if (error.name === 'CredentialsProviderError') {
-      errorMessage = 'AWS credentials not found. Please check your environment variables.';
-    } else if (error.name === 'NoSuchBucket') {
-      errorMessage = 'S3 bucket does not exist. Please create the bucket first.';
-    } else if (error.code === 'AccessDenied') {
-      errorMessage = 'Access denied to S3 bucket. Please check your bucket permissions.';
+    if (error instanceof Error) {
+      if (error.name === 'InvalidParameterValueException') {
+        errorMessage = 'Invalid Step Function configuration. Please check your ARN.';
+      } else if (error.name === 'AccessDeniedException') {
+        errorMessage = 'Access denied. Please check your AWS credentials and permissions.';
+      } else if (error.name === 'CredentialsProviderError') {
+        errorMessage = 'AWS credentials not found. Please check your environment variables.';
+      } else if (error.name === 'NoSuchBucket') {
+        errorMessage = 'S3 bucket does not exist. Please create the bucket first.';
+      } else if ('code' in error && error.code === 'AccessDenied') {
+        errorMessage = 'Access denied to S3 bucket. Please check your bucket permissions.';
+      }
     }
 
     return NextResponse.json(
       { 
         error: errorMessage,
-        details: error.message,
-        name: error.name,
-        code: error.code,
+        details: error instanceof Error ? error.message : 'Unknown error',
+        name: error instanceof Error ? error.name : 'UnknownError',
+        code: (error && typeof error === 'object' && 'code' in error ? (error as { code: string }).code : 'UnknownCode'),
         sessionId: null
       },
       { status: 500 }

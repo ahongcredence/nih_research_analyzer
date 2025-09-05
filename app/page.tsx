@@ -7,9 +7,9 @@ import { useRouter } from "next/navigation";
 export default function Home() {
   const router = useRouter();
   return (
-    <div className="min-h-screen bg-slate-70">
+    <div className="bg-slate-70">
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 sm:py-24">
+      <section className="container mx-auto px-4 py-12 sm:py-16">
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
             Agentic Research Analysis
@@ -32,7 +32,7 @@ export default function Home() {
       </section>
 
       {/* Features Grid */}
-      <section className="container mx-auto px-4 py-16">
+      <section className="container mx-auto px-4 py-12">
         <div className="mx-auto max-w-6xl">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <Card className="bg-white border-slate-200 shadow-sm">
@@ -89,23 +89,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="container mx-auto px-4 py-16">
-        <Card className="mx-auto max-w-2xl text-center bg-white border-slate-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-2xl text-slate-900">Ready to analyze your research?</CardTitle>
-            <CardDescription className="text-base text-slate-600">
-              Upload your research documents and get started with bias analysis in minutes.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button size="lg" className="w-full sm:w-auto" onClick={() => router.push("/upload")}>
-              <Upload className="mr-2 h-4 w-4" />
-              Start Analysis
-            </Button>
-          </CardContent>
-        </Card>
-      </section>
     </div>
   );
 }

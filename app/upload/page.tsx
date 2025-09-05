@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { FileUpload } from "@/app/components";
-import { FileText, Upload, CheckCircle, AlertCircle, ExternalLink } from "lucide-react";
+import { FileText, Upload, CheckCircle, AlertCircle } from "lucide-react";
 
 interface UploadResponse {
   success: boolean;
@@ -20,18 +20,12 @@ interface UploadResponse {
   s3Location: string;
 }
 
-interface UploadError {
-  error: string;
-  details?: string;
-  sessionId?: string;
-}
 
 export default function UploadPage() {
   const router = useRouter();
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string>("");
-  const [sessionId, setSessionId] = useState<string>("");
   const [uploadResponse, setUploadResponse] = useState<UploadResponse | null>(null);
 
   const validateFiles = (files: File[]): string | null => {
@@ -84,7 +78,6 @@ export default function UploadPage() {
   const handleFilesUploaded = (files: File[]) => {
     setUploadedFiles(files);
     setError("");
-    setSessionId("");
     setUploadResponse(null);
   };
 
@@ -103,15 +96,14 @@ export default function UploadPage() {
     
     try {
       const response = await uploadFiles(uploadedFiles);
-      setSessionId(response.sessionId);
       setUploadResponse(response);
       console.log("Upload successful:", response);
       
       // Navigate to results page to show progress
       router.push(`/results/${response.sessionId}`);
       
-    } catch (err: any) {
-      const errorMessage = err.message || 'Upload failed';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Upload failed';
       setError(errorMessage);
       console.error("Upload error:", err);
     } finally {
@@ -252,7 +244,6 @@ export default function UploadPage() {
                 onClick={() => {
                   setUploadedFiles([]);
                   setUploadResponse(null);
-                  setSessionId("");
                   setError("");
                 }}
                 className="px-8"

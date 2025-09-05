@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { 
   FileText, 
-  Brain, 
+  Cpu, 
   Shield, 
   CheckCircle, 
   AlertCircle, 
-  Clock, 
   RefreshCw,
   Download,
   ExternalLink
@@ -36,11 +35,11 @@ interface AnalysisStatus {
       index: number;
     }>;
   };
-  output?: any;
+  output?: Record<string, unknown>;
   additionalResults?: {
-    finalReport?: any;
+    finalReport?: Record<string, unknown>;
     reportLocation?: string;
-    classifications?: any;
+    classifications?: Record<string, unknown>;
     classificationLocation?: string;
   };
   lastUpdated: string;
@@ -64,7 +63,7 @@ const phaseConfig = {
   study_classification: {
     title: "Study Classification", 
     description: "AI agents analyzing study types and methodologies",
-    icon: Brain,
+    icon: Cpu,
     color: "purple",
     estimatedTime: "3-5 minutes"
   },
@@ -110,10 +109,18 @@ export default function StatusTracker({
   const [maxPollingInterval] = useState(15000); // Max 15 seconds (reduced from 30)
   const [pollingAttempts, setPollingAttempts] = useState(0);
   const [maxPollingAttempts] = useState(180); // Max 3 minutes of polling (increased attempts but shorter intervals)
-  const [consecutiveErrors, setConsecutiveErrors] = useState(0);
-  const [maxConsecutiveErrors] = useState(3); // Stop after 3 consecutive errors
+  const [startTime] = useState(Date.now());
+  const [maxPollingTime] = useState(5 * 60 * 1000); // 5 minutes max
+  const fetchStatusRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   const fetchStatus = useCallback(async () => {
+    // Check if we've exceeded the maximum polling time
+    if (Date.now() - startTime > maxPollingTime) {
+      console.log('StatusTracker: Maximum polling time reached, stopping');
+      setIsPolling(false);
+      return;
+    }
+
     try {
       const params = new URLSearchParams({ sessionId });
       if (executionArn) {
@@ -130,12 +137,20 @@ export default function StatusTracker({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch status');
+        console.warn('Status check failed:', data.error || 'Failed to fetch status');
+        setPollingAttempts(prev => {
+          const newCount = prev + 1;
+          if (newCount >= maxPollingAttempts) {
+            console.log('StatusTracker: Stopping due to max attempts:', newCount);
+            setIsPolling(false);
+          }
+          return newCount;
+        });
+        return; // Continue polling on next interval
       }
 
       setStatus(data);
       setPollingAttempts(prev => prev + 1);
-      setConsecutiveErrors(0); // Reset error count on successful fetch
 
       // Handle completion
       if (data.isComplete) {
@@ -154,7 +169,6 @@ export default function StatusTracker({
       // Stop polling after max attempts
       if (pollingAttempts >= maxPollingAttempts) {
         setIsPolling(false);
-        onError?.('Analysis is taking longer than expected. Please check back later.');
         return;
       }
 
@@ -170,41 +184,48 @@ export default function StatusTracker({
         setPollingInterval(Math.min(pollingInterval * 1.1, maxPollingInterval));
       }
 
-    } catch (error: any) {
-      console.error('Status fetch error:', error);
-      setPollingAttempts(prev => prev + 1);
-      setConsecutiveErrors(prev => prev + 1);
-      
-      // Stop polling after consecutive errors
-      if (consecutiveErrors >= maxConsecutiveErrors) {
-        setIsPolling(false);
-        onError?.('Unable to check analysis status. Please refresh the page.');
-        return;
-      }
-      
-      if (pollingAttempts >= maxPollingAttempts) {
-        setIsPolling(false);
-        onError?.(error.message || 'Failed to check analysis status');
-      }
+    } catch (error: unknown) {
+      console.warn('Status fetch error:', error);
+      setPollingAttempts(prev => {
+        const newCount = prev + 1;
+        if (newCount >= maxPollingAttempts) {
+          console.log('StatusTracker: Stopping due to max attempts (catch):', newCount);
+          setIsPolling(false);
+        }
+        return newCount;
+      });
     }
-  }, [sessionId, executionArn, pollingInterval, pollingAttempts, maxPollingAttempts, consecutiveErrors, maxConsecutiveErrors, onComplete, onError]);
+  }, [sessionId, executionArn, pollingInterval, pollingAttempts, maxPollingAttempts, maxPollingInterval, onComplete, onError, startTime, maxPollingTime]);
+
+  // Update the ref with the latest fetchStatus function
+  fetchStatusRef.current = fetchStatus;
 
   // Start polling on mount
   useEffect(() => {
+    console.log('StatusTracker: useEffect triggered, isPolling:', isPolling, 'pollingInterval:', pollingInterval);
     if (isPolling) {
-      const interval = setInterval(fetchStatus, pollingInterval);
-      return () => clearInterval(interval);
+      const interval = setInterval(() => {
+        console.log('StatusTracker: Polling interval triggered');
+        if (fetchStatusRef.current) {
+          fetchStatusRef.current();
+        }
+      }, pollingInterval);
+      return () => {
+        console.log('StatusTracker: Cleaning up interval');
+        clearInterval(interval);
+      };
     }
-  }, [isPolling, pollingInterval, fetchStatus]);
+  }, [isPolling, pollingInterval]);
 
   // Initial fetch
   useEffect(() => {
-    fetchStatus();
+    if (fetchStatusRef.current) {
+      fetchStatusRef.current();
+    }
   }, []);
 
   const handleRefresh = () => {
     setPollingAttempts(0);
-    setConsecutiveErrors(0);
     setPollingInterval(2000);
     setIsPolling(true);
     fetchStatus();
