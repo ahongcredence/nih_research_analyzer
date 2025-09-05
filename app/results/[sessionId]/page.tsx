@@ -65,19 +65,26 @@ export default function ResultsPage() {
     setAnalysisError(error);
   };
 
-  const handleDownloadReport = () => {
-    if (finalResults?.additionalResults?.finalReport) {
-      // Create a blob and download the report
-      const reportData = JSON.stringify(finalResults.additionalResults.finalReport, null, 2);
-      const blob = new Blob([reportData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `bias-analysis-report-${sessionId}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+  const handleDownloadReport = async () => {
+    if (!reportData) return;
+    
+    setIsExportingPDF(true);
+    try {
+      // Try the main PDF export first
+      await exportReportToPDF(reportData);
+    } catch (error) {
+      console.error('Main PDF export failed:', error);
+      // Fallback to HTML-to-PDF conversion
+      try {
+        console.log('Attempting HTML-to-PDF fallback...');
+        const { exportHTMLToPDF } = await import('@/app/lib/pdfExport');
+        await exportHTMLToPDF('report-container', `jbi-bias-assessment-${sessionId}.pdf`);
+      } catch (fallbackError) {
+        console.error('HTML-to-PDF fallback also failed:', fallbackError);
+        alert(`Failed to export PDF. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } finally {
+      setIsExportingPDF(false);
     }
   };
 
@@ -136,9 +143,19 @@ export default function ResultsPage() {
                 <div className="flex space-x-2">
                   <Button
                     onClick={handleDownloadReport}
+                    disabled={isExportingPDF}
                   >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Report
+                    {isExportingPDF ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Exporting PDF...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download PDF
+                      </>
+                    )}
                   </Button>
                 </div>
               )}
@@ -157,65 +174,6 @@ export default function ResultsPage() {
           {/* Analysis Complete - Show Results Summary */}
           {analysisComplete && finalResults && (
             <div className="space-y-6">
-              {/* Summary Cards */}
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center">
-                      <FileText className="mr-2 h-5 w-5" />
-                      Documents Processed
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-slate-900">
-                      {finalResults.input?.fileCount || 0}
-                    </div>
-                    <p className="text-sm text-slate-600 mt-1">
-                      PDF files analyzed
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center">
-                      <BarChart3 className="mr-2 h-5 w-5" />
-                      Studies Classified
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-slate-900">
-                      {Array.isArray(finalResults.additionalResults?.classifications) 
-                        ? finalResults.additionalResults.classifications.length
-                        : 'N/A'
-                      }
-                    </div>
-                    <p className="text-sm text-slate-600 mt-1">
-                      Research studies identified
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center">
-                      <FileText className="mr-2 h-5 w-5" />
-                      Analysis Duration
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-slate-900">
-                      {finalResults.startTime && finalResults.endTime 
-                        ? Math.round((new Date(finalResults.endTime).getTime() - new Date(finalResults.startTime).getTime()) / 1000 / 60)
-                        : 'N/A'
-                      }m
-                    </div>
-                    <p className="text-sm text-slate-600 mt-1">
-                      Total processing time
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
 
               {/* Report Viewer */}
               {reportData && (

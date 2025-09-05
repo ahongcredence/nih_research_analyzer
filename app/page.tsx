@@ -23,7 +23,7 @@ export default function Home() {
               <Upload className="mr-2 h-4 w-4" />
               Upload Documents
             </Button>
-            <Button variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => router.push("/report-demo")}>
+            <Button variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => router.push("/sample-report")}>
               <FileText className="mr-2 h-4 w-4" />
               View Sample Report
             </Button>

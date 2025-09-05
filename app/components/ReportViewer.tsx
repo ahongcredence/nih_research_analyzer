@@ -17,8 +17,6 @@ import {
   TrendingUp,
   Clock,
   ExternalLink,
-  Eye,
-  EyeOff,
   Target,
   Brain,
   BookOpen,
@@ -113,7 +111,6 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['question-analysis']));
   const [expandedStudies, setExpandedStudies] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
-  const [showAllQuestions, setShowAllQuestions] = useState(false);
 
   // Parse reportData if it's a string
   let parsedReportData: ReportData | null = null;
@@ -367,17 +364,6 @@ export default function ReportViewer({ reportData, onExportPDF }: ReportViewerPr
               <BookOpen className="h-4 w-4 mr-2" />
               JBI Question-by-Question Analysis
             </CardTitle>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAllQuestions(!showAllQuestions)}
-                className="text-xs"
-              >
-                {showAllQuestions ? <EyeOff className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
-                {showAllQuestions ? 'Hide' : 'Show'} All
-              </Button>
-            </div>
           </div>
           <CardDescription className="text-sm text-slate-600">
             Detailed bias assessment with confidence scores and evidence
