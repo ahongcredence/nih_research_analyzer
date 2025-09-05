@@ -2,17 +2,29 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 
-// Initialize AWS clients - use default credential chain for Amplify
+// Initialize AWS clients - use IAM role automatically (no explicit credentials)
+const region = process.env.AWS_REGION || process.env.REGION || 'us-east-1';
+
 const sfnClient = new SFNClient({
-  region: process.env.REGION || 'us-east-1',
+  region: region,
 });
 
 const s3Client = new S3Client({
-  region: process.env.REGION || 'us-east-1',
+  region: region,
 });
 
 export async function POST(request: NextRequest) {
   try {
+    // Debug environment configuration
+    console.log('Environment Configuration:', {
+      region: region,
+      S3_BUCKET_NAME: process.env.S3_BUCKET_NAME ? 'SET' : 'MISSING',
+      STEP_FUNCTION_ARN: process.env.STEP_FUNCTION_ARN ? 'SET' : 'MISSING',
+      AWS_REGION: process.env.AWS_REGION || 'NOT_SET',
+      REGION: process.env.REGION || 'NOT_SET',
+      usingIAMRole: true,
+    });
+
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
     
@@ -143,7 +155,14 @@ export async function POST(request: NextRequest) {
             error: `S3 upload failed for ${file.name}`,
             details: errorDetails,
             code: errorCode,
-            sessionId
+            sessionId,
+            debugInfo: {
+              region: region,
+              bucket: s3BucketName,
+              s3Key: s3Key,
+              fileSize: file.size,
+              fileType: file.type,
+            }
           },
           { status: 500 }
         );
@@ -240,6 +259,8 @@ export async function POST(request: NextRequest) {
         uploadedFileCount: uploadedFiles.length,
         uploadErrors: uploadErrors.length,
         s3Bucket: s3BucketName,
+        region: region,
+        usingIAMRole: true,
       }
     });
 
@@ -253,13 +274,13 @@ export async function POST(request: NextRequest) {
       if (error.name === 'InvalidParameterValueException') {
         errorMessage = 'Invalid Step Function configuration. Please check your ARN.';
       } else if (error.name === 'AccessDeniedException') {
-        errorMessage = 'Access denied. Please check your AWS credentials and permissions.';
+        errorMessage = 'Access denied. Please check your IAM role permissions for S3 and Step Functions.';
       } else if (error.name === 'CredentialsProviderError') {
-        errorMessage = 'AWS credentials not found. Please check your environment variables.';
+        errorMessage = 'AWS credentials not found. Please ensure IAM role is properly attached to Amplify.';
       } else if (error.name === 'NoSuchBucket') {
         errorMessage = 'S3 bucket does not exist. Please create the bucket first.';
       } else if ('code' in error && error.code === 'AccessDenied') {
-        errorMessage = 'Access denied to S3 bucket. Please check your bucket permissions.';
+        errorMessage = 'Access denied to S3 bucket. Please check your IAM role permissions.';
       }
     }
 
@@ -269,7 +290,17 @@ export async function POST(request: NextRequest) {
         details: error instanceof Error ? error.message : 'Unknown error',
         name: error instanceof Error ? error.name : 'UnknownError',
         code: (error && typeof error === 'object' && 'code' in error ? (error as { code: string }).code : 'UnknownCode'),
-        sessionId: null
+        sessionId: null,
+        debugInfo: {
+          region: region,
+          usingIAMRole: true,
+          environmentVars: {
+            AWS_REGION: process.env.AWS_REGION ? 'SET' : 'MISSING',
+            REGION: process.env.REGION ? 'SET' : 'MISSING',
+            S3_BUCKET_NAME: process.env.S3_BUCKET_NAME ? 'SET' : 'MISSING',
+            STEP_FUNCTION_ARN: process.env.STEP_FUNCTION_ARN ? 'SET' : 'MISSING',
+          }
+        }
       },
       { status: 500 }
     );
