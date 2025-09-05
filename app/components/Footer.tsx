@@ -35,79 +35,42 @@ export default function Footer({
   const defaultCopyright = `© ${currentYear} ${agencyName}. All rights reserved.`;
 
   return (
-    <footer className={cn("border-t border-slate-200 bg-slate-100", className)}>
-      <div className="container py-8 md:py-12">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+    <footer className={cn("border-t border-slate-200/50 bg-slate-50/80", className)}>
+      <div className="container py-6 md:py-6">
+        <div className="flex flex-col items-start text-left">
           {/* Agency Logo and Description */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <Image
-              src="/credence_logo.png"
+              src="/credence_logo_condensed.png"
               alt="Credence Management Solutions"
-              width={200}
-              height={80}
-              className="h-12 w-auto"
+              width={100}
+              height={40}
+              className="h-8 w-auto"
               priority
-              quality={100}
             />
             {agencyDescription && (
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-slate-500 max-w-md">
                 {agencyDescription}
               </p>
             )}
           </div>
-          
-          {contactInfo && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-slate-900">Contact</h3>
-              <ul className="space-y-2">
-                {contactInfo.address && (
-                  <li className="text-sm text-slate-600">
-                    <span className="sr-only">Address</span>
-                    {contactInfo.address}
-                  </li>
-                )}
-                {contactInfo.phone && (
-                  <li className="text-sm text-slate-600">
-                    <span className="sr-only">Phone</span>
-                    <a
-                      href={`tel:${contactInfo.phone}`}
-                      className="hover:text-slate-900 transition-colors"
-                    >
-                      {contactInfo.phone}
-                    </a>
-                  </li>
-                )}
-                {contactInfo.email && (
-                  <li className="text-sm text-slate-600">
-                    <span className="sr-only">Email</span>
-                    <a
-                      href={`mailto:${contactInfo.email}`}
-                      className="hover:text-slate-900 transition-colors"
-                    >
-                      {contactInfo.email}
-                    </a>
-                  </li>
-                )}
-              </ul>
-            </div>
-          )}
         </div>
 
-        <div className="mt-8 border-t border-slate-200 pt-8">
-          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-            <p className="text-xs text-slate-600">
+        <div className="mt-6 border-t border-slate-200/30 pt-4">
+          <div className="flex flex-col space-y-3 md:flex-row md:items-center md:justify-between md:space-y-0">
+            <p className="text-xs text-slate-500">
               {copyrightText || defaultCopyright}
             </p>
-            <div className="flex space-x-6">
+            <div className="flex space-x-4">
               <Link
                 href="/privacy"
-                className="text-xs text-slate-600 hover:text-slate-900 transition-colors"
+                className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
               >
                 Privacy Policy
               </Link>
               <Link
                 href="/terms"
-                className="text-xs text-slate-600 hover:text-slate-900 transition-colors"
+                className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
               >
                 Terms of Service
               </Link>

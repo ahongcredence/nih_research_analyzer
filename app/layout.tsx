@@ -31,10 +31,10 @@ export default function RootLayout({
         <div className="min-h-screen flex flex-col">
           <Header
             logo={{
-              src: "/nih_logo.png",
+              src: "/nih_logo-removebg-preview.png",
               alt: "Research Analyzer Logo",
-              width: 50,
-              height: 50,
+              width: 70,
+              height: 70,
             }}
             heading="Agentic Research Analysis"
             subheading="Advanced Data Analysis Platform"
