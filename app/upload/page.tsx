@@ -29,7 +29,7 @@ export default function UploadPage() {
   const [uploadResponse, setUploadResponse] = useState<UploadResponse | null>(null);
 
   const validateFiles = (files: File[]): string | null => {
-    const maxFiles = parseInt(process.env.NEXT_PUBLIC_MAX_FILES || '5');
+    const maxFiles = parseInt(process.env.NEXT_PUBLIC_MAX_FILES || '50');
     const maxFileSize = parseInt(process.env.NEXT_PUBLIC_MAX_FILE_SIZE || '10485760'); // 10MB
     
     if (files.length === 0) {
@@ -130,7 +130,7 @@ export default function UploadPage() {
             <CardHeader>
               <CardTitle className="text-xl text-slate-900">Document Upload</CardTitle>
               <CardDescription className="text-slate-600">
-                Supported format: PDF only. Maximum {process.env.NEXT_PUBLIC_MAX_FILES || '5'} files, {Math.round(parseInt(process.env.NEXT_PUBLIC_MAX_FILE_SIZE || '10485760') / (1024 * 1024))}MB per file.
+                Supported format: PDF only. Maximum {process.env.NEXT_PUBLIC_MAX_FILES || '50'} files, {Math.round(parseInt(process.env.NEXT_PUBLIC_MAX_FILE_SIZE || '10485760') / (1024 * 1024))}MB per file.
               </CardDescription>
             </CardHeader>
             <CardContent>

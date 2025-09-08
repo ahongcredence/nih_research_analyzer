@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use environment variable for max files
-    const maxFiles = parseInt(process.env.NEXT_PUBLIC_MAX_FILES || '5');
+    const maxFiles = parseInt(process.env.NEXT_PUBLIC_MAX_FILES || '50');
     if (files.length > maxFiles) {
       return NextResponse.json(
         { error: `Maximum ${maxFiles} files allowed` },
