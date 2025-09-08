@@ -143,6 +143,50 @@ export default function ReportViewer({ reportData, sessionId }: ReportViewerProp
   function normalizeReportDataForViewer(data: Record<string, unknown>): ReportData {
     console.log('ReportViewer: Normalizing data structure:', data);
     
+    // Handle the new JBI bias analysis report structure
+    const isJBIReport = data.reportMetadata?.reportType?.includes('jbi') || 
+                       data.reportType?.includes('jbi') ||
+                       data.detailedStudyAssessments?.length > 0;
+    
+    if (isJBIReport) {
+      return {
+        reportMetadata: {
+          sessionId: (data.reportMetadata as Record<string, unknown>)?.sessionId as string || (data.sessionId as string) || 'Unknown',
+          s3Bucket: (data.reportMetadata as Record<string, unknown>)?.s3Bucket as string || (data.s3Bucket as string) || 'Unknown',
+          generatedAt: (data.reportMetadata as Record<string, unknown>)?.generatedAt as string || (data.generatedAt as string) || new Date().toISOString(),
+          reportType: (data.reportMetadata as Record<string, unknown>)?.reportType as string || (data.reportType as string) || 'JBI Bias Assessment',
+          lambdaRequestId: (data.reportMetadata as Record<string, unknown>)?.lambdaRequestId as string || (data.lambdaRequestId as string) || 'Unknown',
+          bedrockModel: (data.reportMetadata as Record<string, unknown>)?.bedrockModel as string || (data.bedrockModel as string) || 'Unknown'
+        },
+        executiveSummary: {
+          overallFindings: (data.executiveSummary as Record<string, unknown>)?.overallFindings as string || (data.overallFindings as string) || 'No findings available',
+          inclusionRate: (data.executiveSummary as Record<string, unknown>)?.inclusionRate as string || (data.inclusionRate as string) || 'Unknown',
+          majorConcerns: (data.executiveSummary as Record<string, unknown>)?.majorConcerns as string[] || (data.majorConcerns as string[]) || [],
+          keyStrengths: (data.executiveSummary as Record<string, unknown>)?.keyStrengths as string[] || (data.keyStrengths as string[]) || [],
+          assessmentConfidence: (data.executiveSummary as Record<string, unknown>)?.assessmentConfidence as string || (data.assessmentConfidence as string) || 'Unknown',
+          nextSteps: (data.executiveSummary as Record<string, unknown>)?.nextSteps as string[] || (data.nextSteps as string[]) || []
+        },
+        summaryStatistics: {
+          totalStudies: (data.summaryStatistics as Record<string, unknown>)?.totalStudies as number || (data.totalStudies as number) || 0,
+          successfulAnalyses: (data.summaryStatistics as Record<string, unknown>)?.successfulAnalyses as number || (data.successfulAnalyses as number) || 0,
+          failedAnalyses: (data.summaryStatistics as Record<string, unknown>)?.failedAnalyses as number || (data.failedAnalyses as number) || 0,
+          studyTypeBreakdown: (data.summaryStatistics as Record<string, unknown>)?.studyTypeBreakdown as Record<string, number> || (data.studyTypeBreakdown as Record<string, number>) || {},
+          biasRatingDistribution: (data.summaryStatistics as Record<string, unknown>)?.biasRatingDistribution as Record<string, number> || (data.biasRatingDistribution as Record<string, number>) || {},
+          recommendationDistribution: (data.summaryStatistics as Record<string, unknown>)?.recommendationDistribution as Record<string, number> || (data.recommendationDistribution as Record<string, number>) || {},
+          inclusionRate: (data.summaryStatistics as Record<string, unknown>)?.inclusionRate as string || (data.inclusionRate as string) || 'Unknown'
+        },
+        detailedStudyAssessments: ((data.detailedStudyAssessments as unknown[]) || (data.studyAssessments as unknown[]) || []) as ReportData['detailedStudyAssessments'],
+        recommendationsByCategory: {
+          highPriorityInclusions: (data.recommendationsByCategory as Record<string, unknown>)?.highPriorityInclusions as unknown[] || [],
+          conditionalInclusions: (data.recommendationsByCategory as Record<string, unknown>)?.conditionalInclusions as unknown[] || [],
+          needsFurtherReview: (data.recommendationsByCategory as Record<string, unknown>)?.needsFurtherReview as unknown[] || [],
+          clearExclusions: (data.recommendationsByCategory as Record<string, unknown>)?.clearExclusions as unknown[] || []
+        } as ReportData['recommendationsByCategory'],
+        originalClassifications: ((data.originalClassifications as unknown[]) || (data.classifications as unknown[]) || []) as ReportData['originalClassifications']
+      };
+    }
+    
+    // Fallback to original normalization for backward compatibility
     return {
       reportMetadata: {
         sessionId: (data.reportMetadata as Record<string, unknown>)?.sessionId as string || (data.sessionId as string) || 'Unknown',

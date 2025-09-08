@@ -6,7 +6,7 @@ import { Button } from "@/app/components/ui/button";
 import StatusTracker from "@/app/components/StatusTracker";
 import ReportViewer from "@/app/components/ReportViewer";
 import { exportReportToPDF } from "@/app/lib/pdfExport";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, FileText } from "lucide-react";
 
 interface AnalysisStatus {
   sessionId: string;
@@ -48,18 +48,63 @@ export default function ResultsPage() {
   const [finalResults, setFinalResults] = useState<AnalysisStatus | null>(null);
   const [reportData, setReportData] = useState<Record<string, unknown> | null>(null);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [isLoadingReport, setIsLoadingReport] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
 
-  const handleAnalysisComplete = (results: AnalysisStatus) => {
+  const handleAnalysisComplete = async (results: AnalysisStatus) => {
     setAnalysisComplete(true);
     setFinalResults(results);
     
     // Set report data if available
     if (results.additionalResults?.finalReport) {
       setReportData(results.additionalResults.finalReport);
+    } else if (results.reportLocation) {
+      // Try to fetch the report if it's not in additionalResults
+      try {
+        const response = await fetch(`/api/report?sessionId=${sessionId}`);
+        if (response.ok) {
+          const reportResponse = await response.json();
+          if (reportResponse.success && reportResponse.report) {
+            setReportData(reportResponse.report);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch report:', error);
+      }
     }
   };
 
 
+
+  const handleFetchReport = async () => {
+    if (!sessionId) return;
+    
+    setIsLoadingReport(true);
+    setReportError(null);
+    try {
+      const response = await fetch(`/api/report?sessionId=${sessionId}`);
+      if (response.ok) {
+        const reportResponse = await response.json();
+        if (reportResponse.success && reportResponse.report) {
+          setReportData(reportResponse.report);
+          setReportError(null);
+        } else {
+          setReportError('Report not found or not ready yet');
+        }
+      } else {
+        const errorData = await response.json();
+        setReportError(`Failed to fetch report: ${errorData.error || 'Unknown error'}`);
+        if (errorData.details) {
+          setReportError(prev => `${prev}\nDetails: ${errorData.details}`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch report:', error);
+      setReportError(`Failed to fetch report: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoadingReport(false);
+    }
+  };
 
   const handleExportPDF = async () => {
     if (!reportData) return;
@@ -114,22 +159,43 @@ export default function ResultsPage() {
               
               {analysisComplete && finalResults && (
                 <div className="flex space-x-2">
-                  <Button
-                    onClick={handleExportPDF}
-                    disabled={isExportingPDF}
-                  >
-                    {isExportingPDF ? (
-                      <>
-                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        Exporting PDF...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="mr-2 h-4 w-4" />
-                        Export PDF
-                      </>
-                    )}
-                  </Button>
+                  {!reportData && (
+                    <Button
+                      onClick={handleFetchReport}
+                      disabled={isLoadingReport}
+                      variant="outline"
+                    >
+                      {isLoadingReport ? (
+                        <>
+                          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-transparent" />
+                          Loading Report...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Load Report
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {reportData && (
+                    <Button
+                      onClick={handleExportPDF}
+                      disabled={isExportingPDF}
+                    >
+                      {isExportingPDF ? (
+                        <>
+                          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          Exporting PDF...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Export PDF
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -146,6 +212,26 @@ export default function ResultsPage() {
           {/* Analysis Complete - Show Results Summary */}
           {analysisComplete && finalResults && (
             <div className="space-y-6">
+              {/* Error Display */}
+              {reportError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className="text-red-600">⚠️</div>
+                    <h3 className="text-red-800 font-medium">Report Loading Error</h3>
+                  </div>
+                  <p className="text-red-700 text-sm whitespace-pre-line">{reportError}</p>
+                  <div className="mt-3">
+                    <Button
+                      onClick={handleFetchReport}
+                      disabled={isLoadingReport}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {isLoadingReport ? 'Retrying...' : 'Try Again'}
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Report Viewer */}
               {reportData && (

@@ -117,24 +117,55 @@ export async function GET(request: NextRequest) {
       try {
         const s3BucketName = process.env.S3_BUCKET_NAME || 'nih-uploaded-docs';
         if (s3BucketName) {
-          // Try to get the final report
-          try {
-            const reportKey = `${sessionId}/analysis/jbi_bias_assessment_report.json`;
-            const reportCommand = new GetObjectCommand({
-              Bucket: s3BucketName,
-              Key: reportKey,
-            });
-            const reportResponse = await s3Client.send(reportCommand);
-            const reportData = await reportResponse.Body?.transformToString();
-            if (reportData) {
-              additionalResults = {
-                finalReport: JSON.parse(reportData),
-                reportLocation: `s3://${s3BucketName}/${reportKey}`,
-              };
+          // UPDATED: Get final report location from Step Functions output first
+          let finalReportLocation = null;
+          
+          if (output?.reportLocation) {
+            // Use the location from the Lambda response
+            finalReportLocation = {
+              bucket: output.reportLocation.bucket,
+              key: output.reportLocation.key,
+              url: output.reportLocation.url
+            };
+          }
+          
+          // Try to get the final report using the location from Step Functions output
+          if (finalReportLocation) {
+            try {
+              const reportCommand = new GetObjectCommand({
+                Bucket: finalReportLocation.bucket,
+                Key: finalReportLocation.key,
+              });
+              const reportResponse = await s3Client.send(reportCommand);
+              const reportData = await reportResponse.Body?.transformToString();
+              if (reportData) {
+                additionalResults = {
+                  finalReport: JSON.parse(reportData),
+                  reportLocation: finalReportLocation.url,
+                };
+              }
+            } catch (reportError) {
+              console.log('Could not fetch final report:', reportError);
             }
-          } catch {
-            // Report not ready yet, that's okay
-            console.log('Final report not yet available');
+          } else {
+            // Fallback: try the old hardcoded location for backward compatibility
+            try {
+              const reportKey = `${sessionId}/analysis/jbi_bias_assessment_report.json`;
+              const reportCommand = new GetObjectCommand({
+                Bucket: s3BucketName,
+                Key: reportKey,
+              });
+              const reportResponse = await s3Client.send(reportCommand);
+              const reportData = await reportResponse.Body?.transformToString();
+              if (reportData) {
+                additionalResults = {
+                  finalReport: JSON.parse(reportData),
+                  reportLocation: `s3://${s3BucketName}/${reportKey}`,
+                };
+              }
+            } catch {
+              console.log('Final report not found at legacy location');
+            }
           }
 
           // Try to get classification results
@@ -163,6 +194,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // UPDATED: Return enhanced response with new data structure
     return NextResponse.json({
       sessionId: sessionId || input.sessionId,
       executionArn: executionArnToCheck,
@@ -180,6 +212,11 @@ export async function GET(request: NextRequest) {
         files: input.files || [],
       },
       output: output,
+      // UPDATED: Include new summary data from Step Functions output
+      summary: output?.summary || output?.reportSummary || null,
+      executiveSummary: output?.executiveSummary || null,
+      reportLocation: output?.reportLocation || null,
+      biasAnalyses: output?.biasAnalyses || null,
       additionalResults,
       lastUpdated: new Date().toISOString(),
     });

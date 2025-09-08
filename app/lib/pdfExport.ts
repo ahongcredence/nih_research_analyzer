@@ -441,6 +441,13 @@ export async function exportReportToPDF(reportData: ReportData | string | Record
 function normalizeReportData(data: Record<string, unknown>): ReportData {
   console.log('PDF Export - Normalizing data structure:', data);
   
+  // Check if this is a JBI bias analysis report
+  const isJBIReport = data.reportMetadata?.reportType?.includes('jbi') || 
+                     data.reportType?.includes('jbi') ||
+                     data.detailedStudyAssessments?.length > 0;
+  
+  console.log('PDF Export - Is JBI report:', isJBIReport);
+  
   // Ensure we have the basic structure
   const normalized: ReportData = {
     reportMetadata: {
