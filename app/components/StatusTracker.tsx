@@ -13,37 +13,7 @@ import {
   Download,
   ExternalLink
 } from "lucide-react";
-
-interface AnalysisStatus {
-  sessionId: string;
-  executionArn: string;
-  status: string;
-  currentPhase: string;
-  phaseProgress: number;
-  phaseDescription: string;
-  isComplete: boolean;
-  hasError: boolean;
-  errorMessage?: string;
-  startTime?: string;
-  endTime?: string;
-  input?: {
-    fileCount: number;
-    files: Array<{
-      name: string;
-      size: number;
-      s3Key: string;
-      index: number;
-    }>;
-  };
-  output?: Record<string, unknown>;
-  additionalResults?: {
-    finalReport?: Record<string, unknown>;
-    reportLocation?: string;
-    classifications?: Record<string, unknown>;
-    classificationLocation?: string;
-  };
-  lastUpdated: string;
-}
+import { AnalysisStatus } from "@/app/lib/types";
 
 interface StatusTrackerProps {
   sessionId: string;

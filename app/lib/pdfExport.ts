@@ -1,73 +1,11 @@
 import jsPDF from 'jspdf';
+import { 
+  Classification, 
+  StudyRecommendation, 
+  StudyAnalysis, 
+  ReportData
+} from './types';
 
-interface JBIQuestion {
-  number: number;
-  question: string;
-  answer: string;
-  reasoning: string;
-  evidence: string[];
-  biasImplication: string;
-}
-
-interface StudyAnalysis {
-  fileName?: string;
-  studyType?: string;
-  criteriaType?: string;
-  overallAssessment?: {
-    biasRating?: string;
-    recommendation?: string;
-    summaryReasoning?: string;
-    strengths?: string[];
-    weaknesses?: string[];
-  };
-  jbiQuestions?: JBIQuestion[];
-  assessmentMetadata?: {
-    confidence: number;
-    processingTime: string;
-    modelVersion: string;
-  };
-}
-
-interface ReportData {
-  reportMetadata?: {
-    sessionId?: string;
-    s3Bucket?: string;
-    generatedAt?: string;
-    reportType?: string;
-    lambdaRequestId?: string;
-    bedrockModel?: string;
-  };
-  executiveSummary?: {
-    overallFindings?: string;
-    inclusionRate?: string;
-    majorConcerns?: string[];
-    keyStrengths?: string[];
-    assessmentConfidence?: string;
-    nextSteps?: string[];
-  };
-  summaryStatistics?: {
-    totalStudies?: number;
-    successfulAnalyses?: number;
-    failedAnalyses?: number;
-    studyTypeBreakdown?: Record<string, number>;
-    biasRatingDistribution?: Record<string, number>;
-    recommendationDistribution?: Record<string, number>;
-    inclusionRate?: string;
-  };
-  detailedStudyAssessments?: StudyAnalysis[];
-  recommendationsByCategory?: {
-    highPriorityInclusions?: StudyAnalysis[];
-    conditionalInclusions?: StudyAnalysis[];
-    needsFurtherReview?: StudyAnalysis[];
-    clearExclusions?: StudyAnalysis[];
-  };
-  originalClassifications?: Array<{
-    fileName?: string;
-    studyType?: string;
-    confidence?: number;
-    reasoning?: string;
-  }>;
-}
 
 class PDFReportGenerator {
   private doc: jsPDF;
@@ -411,17 +349,30 @@ export async function exportReportToPDF(reportData: ReportData | string | Record
     if (typeof reportData === 'string') {
       try {
         const rawData = JSON.parse(reportData);
+        if (!rawData || typeof rawData !== 'object') {
+          throw new Error('Parsed JSON data is not a valid object');
+        }
         parsedData = normalizeReportData(rawData);
         console.log('PDF Export - Parsed and normalized string data:', parsedData);
       } catch (parseError) {
         console.error('PDF Export - JSON parse error:', parseError);
-        throw new Error('Report data is a string but cannot be parsed as JSON');
+        throw new Error(`Report data is a string but cannot be parsed as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
       }
-    } else if (typeof reportData === 'object') {
-      parsedData = normalizeReportData(reportData as Record<string, unknown>);
-      console.log('PDF Export - Normalized object data:', parsedData);
+    } else if (typeof reportData === 'object' && reportData !== null) {
+      try {
+        parsedData = normalizeReportData(reportData as Record<string, unknown>);
+        console.log('PDF Export - Normalized object data:', parsedData);
+      } catch (normalizeError) {
+        console.error('PDF Export - Data normalization error:', normalizeError);
+        throw new Error(`Failed to normalize report data: ${normalizeError instanceof Error ? normalizeError.message : 'Unknown normalization error'}`);
+      }
     } else {
-      throw new Error('Invalid report data type');
+      throw new Error(`Invalid report data type: ${typeof reportData}. Expected string or object.`);
+    }
+
+    // Validate the normalized data before generating PDF
+    if (!parsedData.reportMetadata || !parsedData.executiveSummary || !parsedData.summaryStatistics) {
+      throw new Error('Normalized report data is missing required sections (reportMetadata, executiveSummary, or summaryStatistics)');
     }
 
     const generator = new PDFReportGenerator();
@@ -431,9 +382,11 @@ export async function exportReportToPDF(reportData: ReportData | string | Record
     const filename = `jbi-bias-assessment-${timestamp}.pdf`;
     generator.save(filename);
     
+    console.log('PDF export completed successfully:', filename);
+    
   } catch (error) {
     console.error('PDF export error:', error);
-    throw error;
+    throw new Error(`PDF export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -441,48 +394,74 @@ export async function exportReportToPDF(reportData: ReportData | string | Record
 function normalizeReportData(data: Record<string, unknown>): ReportData {
   console.log('PDF Export - Normalizing data structure:', data);
   
+  // Validate input data
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid data: expected object');
+  }
+  
   // Check if this is a JBI bias analysis report
-  const isJBIReport = data.reportMetadata?.reportType?.includes('jbi') || 
-                     data.reportType?.includes('jbi') ||
-                     data.detailedStudyAssessments?.length > 0;
+  const reportMetadata = data.reportMetadata as Record<string, unknown>;
+  const reportType = reportMetadata?.reportType as string;
+  const detailedStudyAssessments = data.detailedStudyAssessments as unknown[];
+  
+  const isJBIReport = (typeof reportType === 'string' && reportType.includes('jbi')) || 
+                     (typeof data.reportType === 'string' && data.reportType.includes('jbi')) ||
+                     (Array.isArray(detailedStudyAssessments) && detailedStudyAssessments.length > 0);
   
   console.log('PDF Export - Is JBI report:', isJBIReport);
   
-  // Ensure we have the basic structure
+  // Helper function to safely extract string values
+  const safeString = (value: unknown, fallback: string = 'Unknown'): string => {
+    return typeof value === 'string' ? value : fallback;
+  };
+
+  const safeArray = <T>(value: unknown, fallback: T[] = []): T[] => {
+    return Array.isArray(value) ? value as T[] : fallback;
+  };
+
+  const safeNumber = (value: unknown, fallback: number = 0): number => {
+    return typeof value === 'number' && !isNaN(value) ? value : fallback;
+  };
+
+  const safeRecord = (value: unknown, fallback: Record<string, number> = {}): Record<string, number> => {
+    return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, number> : fallback;
+  };
+
+  // Ensure we have the basic structure with all required fields
   const normalized: ReportData = {
     reportMetadata: {
-      sessionId: (data.reportMetadata as Record<string, unknown>)?.sessionId as string || (data.sessionId as string) || 'Unknown',
-      s3Bucket: (data.reportMetadata as Record<string, unknown>)?.s3Bucket as string || (data.s3Bucket as string) || 'Unknown',
-      generatedAt: (data.reportMetadata as Record<string, unknown>)?.generatedAt as string || (data.generatedAt as string) || new Date().toISOString(),
-      reportType: (data.reportMetadata as Record<string, unknown>)?.reportType as string || (data.reportType as string) || 'JBI Bias Assessment',
-      lambdaRequestId: (data.reportMetadata as Record<string, unknown>)?.lambdaRequestId as string || (data.lambdaRequestId as string) || 'Unknown',
-      bedrockModel: (data.reportMetadata as Record<string, unknown>)?.bedrockModel as string || (data.bedrockModel as string) || 'Unknown'
+      sessionId: safeString((data.reportMetadata as Record<string, unknown>)?.sessionId || data.sessionId, 'Unknown'),
+      s3Bucket: safeString((data.reportMetadata as Record<string, unknown>)?.s3Bucket || data.s3Bucket, 'Unknown'),
+      generatedAt: safeString((data.reportMetadata as Record<string, unknown>)?.generatedAt || data.generatedAt, new Date().toISOString()),
+      reportType: safeString((data.reportMetadata as Record<string, unknown>)?.reportType || data.reportType, 'JBI Bias Assessment'),
+      lambdaRequestId: safeString((data.reportMetadata as Record<string, unknown>)?.lambdaRequestId || data.lambdaRequestId, 'Unknown'),
+      bedrockModel: safeString((data.reportMetadata as Record<string, unknown>)?.bedrockModel || data.bedrockModel, 'Unknown')
     },
     executiveSummary: {
-      overallFindings: (data.executiveSummary as Record<string, unknown>)?.overallFindings as string || (data.overallFindings as string) || 'No findings available',
-      inclusionRate: (data.executiveSummary as Record<string, unknown>)?.inclusionRate as string || (data.inclusionRate as string) || 'Unknown',
-      majorConcerns: (data.executiveSummary as Record<string, unknown>)?.majorConcerns as string[] || (data.majorConcerns as string[]) || [],
-      keyStrengths: (data.executiveSummary as Record<string, unknown>)?.keyStrengths as string[] || (data.keyStrengths as string[]) || [],
-      assessmentConfidence: (data.executiveSummary as Record<string, unknown>)?.assessmentConfidence as string || (data.assessmentConfidence as string) || 'Unknown',
-      nextSteps: (data.executiveSummary as Record<string, unknown>)?.nextSteps as string[] || (data.nextSteps as string[]) || []
+      overallFindings: safeString((data.executiveSummary as Record<string, unknown>)?.overallFindings || data.overallFindings, 'No findings available'),
+      inclusionRate: safeString((data.executiveSummary as Record<string, unknown>)?.inclusionRate || data.inclusionRate, 'Unknown'),
+      majorConcerns: safeArray<string>((data.executiveSummary as Record<string, unknown>)?.majorConcerns || data.majorConcerns),
+      keyStrengths: safeArray<string>((data.executiveSummary as Record<string, unknown>)?.keyStrengths || data.keyStrengths),
+      assessmentConfidence: safeString((data.executiveSummary as Record<string, unknown>)?.assessmentConfidence || data.assessmentConfidence, 'Unknown'),
+      nextSteps: safeArray<string>((data.executiveSummary as Record<string, unknown>)?.nextSteps || data.nextSteps)
     },
     summaryStatistics: {
-      totalStudies: (data.summaryStatistics as Record<string, unknown>)?.totalStudies as number || (data.totalStudies as number) || 0,
-      successfulAnalyses: (data.summaryStatistics as Record<string, unknown>)?.successfulAnalyses as number || (data.successfulAnalyses as number) || 0,
-      failedAnalyses: (data.summaryStatistics as Record<string, unknown>)?.failedAnalyses as number || (data.failedAnalyses as number) || 0,
-      studyTypeBreakdown: (data.summaryStatistics as Record<string, unknown>)?.studyTypeBreakdown as Record<string, number> || (data.studyTypeBreakdown as Record<string, number>) || {},
-      biasRatingDistribution: (data.summaryStatistics as Record<string, unknown>)?.biasRatingDistribution as Record<string, number> || (data.biasRatingDistribution as Record<string, number>) || {},
-      recommendationDistribution: (data.summaryStatistics as Record<string, unknown>)?.recommendationDistribution as Record<string, number> || (data.recommendationDistribution as Record<string, number>) || {},
-      inclusionRate: (data.summaryStatistics as Record<string, unknown>)?.inclusionRate as string || (data.inclusionRate as string) || 'Unknown'
+      totalStudies: safeNumber((data.summaryStatistics as Record<string, unknown>)?.totalStudies || data.totalStudies),
+      successfulAnalyses: safeNumber((data.summaryStatistics as Record<string, unknown>)?.successfulAnalyses || data.successfulAnalyses),
+      failedAnalyses: safeNumber((data.summaryStatistics as Record<string, unknown>)?.failedAnalyses || data.failedAnalyses),
+      studyTypeBreakdown: safeRecord((data.summaryStatistics as Record<string, unknown>)?.studyTypeBreakdown || data.studyTypeBreakdown),
+      biasRatingDistribution: safeRecord((data.summaryStatistics as Record<string, unknown>)?.biasRatingDistribution || data.biasRatingDistribution),
+      recommendationDistribution: safeRecord((data.summaryStatistics as Record<string, unknown>)?.recommendationDistribution || data.recommendationDistribution),
+      inclusionRate: safeString((data.summaryStatistics as Record<string, unknown>)?.inclusionRate || data.inclusionRate, 'Unknown')
     },
-    detailedStudyAssessments: ((data.detailedStudyAssessments as unknown[]) || (data.studyAssessments as unknown[]) || []) as ReportData['detailedStudyAssessments'],
+    detailedStudyAssessments: safeArray<StudyAnalysis>((data.detailedStudyAssessments || data.studyAssessments)),
     recommendationsByCategory: {
-      highPriorityInclusions: (data.recommendationsByCategory as Record<string, unknown>)?.highPriorityInclusions as unknown[] || [],
-      conditionalInclusions: (data.recommendationsByCategory as Record<string, unknown>)?.conditionalInclusions as unknown[] || [],
-      needsFurtherReview: (data.recommendationsByCategory as Record<string, unknown>)?.needsFurtherReview as unknown[] || [],
-      clearExclusions: (data.recommendationsByCategory as Record<string, unknown>)?.clearExclusions as unknown[] || []
-    } as ReportData['recommendationsByCategory'],
-    originalClassifications: ((data.originalClassifications as unknown[]) || (data.classifications as unknown[]) || []) as ReportData['originalClassifications']
+      highPriorityInclusions: safeArray<StudyRecommendation>((data.recommendationsByCategory as Record<string, unknown>)?.highPriorityInclusions),
+      conditionalInclusions: safeArray<StudyRecommendation>((data.recommendationsByCategory as Record<string, unknown>)?.conditionalInclusions),
+      needsFurtherReview: safeArray<StudyRecommendation>((data.recommendationsByCategory as Record<string, unknown>)?.needsFurtherReview),
+      clearExclusions: safeArray<StudyRecommendation>((data.recommendationsByCategory as Record<string, unknown>)?.clearExclusions)
+    },
+    originalClassifications: safeArray<Classification>((data.originalClassifications || data.classifications))
   };
 
   console.log('PDF Export - Normalized data keys:', Object.keys(normalized));

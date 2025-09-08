@@ -86,21 +86,21 @@ export function validateReportStructure(reportData: Record<string, unknown>): bo
     }
 
     // Check reportMetadata structure
-    const metadata = reportData.reportMetadata;
+    const metadata = reportData.reportMetadata as Record<string, unknown>;
     if (!metadata.sessionId || !metadata.reportType) {
       console.error('Invalid reportMetadata structure');
       return false;
     }
 
     // Check executiveSummary structure
-    const summary = reportData.executiveSummary;
+    const summary = reportData.executiveSummary as Record<string, unknown>;
     if (!summary.overallFindings || !summary.inclusionRate) {
       console.error('Invalid executiveSummary structure');
       return false;
     }
 
     // Check summaryStatistics structure
-    const stats = reportData.summaryStatistics;
+    const stats = reportData.summaryStatistics as Record<string, unknown>;
     if (typeof stats.totalStudies !== 'number' || typeof stats.successfulAnalyses !== 'number') {
       console.error('Invalid summaryStatistics structure');
       return false;

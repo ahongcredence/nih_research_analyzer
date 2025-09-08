@@ -7,37 +7,7 @@ import StatusTracker from "@/app/components/StatusTracker";
 import ReportViewer from "@/app/components/ReportViewer";
 import { exportReportToPDF } from "@/app/lib/pdfExport";
 import { ArrowLeft, Download, FileText } from "lucide-react";
-
-interface AnalysisStatus {
-  sessionId: string;
-  executionArn: string;
-  status: string;
-  currentPhase: string;
-  phaseProgress: number;
-  phaseDescription: string;
-  isComplete: boolean;
-  hasError: boolean;
-  errorMessage?: string;
-  startTime?: string;
-  endTime?: string;
-  input?: {
-    fileCount: number;
-    files: Array<{
-      name: string;
-      size: number;
-      s3Key: string;
-      index: number;
-    }>;
-  };
-  output?: Record<string, unknown>;
-  additionalResults?: {
-    finalReport?: Record<string, unknown>;
-    reportLocation?: string;
-    classifications?: Record<string, unknown>;
-    classificationLocation?: string;
-  };
-  lastUpdated: string;
-}
+import { AnalysisStatus, ReportData, safeExtractReportData } from "@/app/lib/types";
 
 export default function ResultsPage() {
   const params = useParams();
@@ -46,7 +16,7 @@ export default function ResultsPage() {
   
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [finalResults, setFinalResults] = useState<AnalysisStatus | null>(null);
-  const [reportData, setReportData] = useState<Record<string, unknown> | null>(null);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
@@ -57,19 +27,32 @@ export default function ResultsPage() {
     
     // Set report data if available
     if (results.additionalResults?.finalReport) {
-      setReportData(results.additionalResults.finalReport);
-    } else if (results.reportLocation) {
+      const extraction = safeExtractReportData(results.additionalResults.finalReport);
+      if (extraction.success && extraction.data) {
+        setReportData(extraction.data);
+      } else {
+        console.error('Failed to validate report data:', extraction.error);
+        setReportError(`Invalid report data: ${extraction.error}`);
+      }
+    } else if (results.additionalResults?.reportLocation) {
       // Try to fetch the report if it's not in additionalResults
       try {
         const response = await fetch(`/api/report?sessionId=${sessionId}`);
         if (response.ok) {
           const reportResponse = await response.json();
           if (reportResponse.success && reportResponse.report) {
-            setReportData(reportResponse.report);
+            const extraction = safeExtractReportData(reportResponse.report);
+            if (extraction.success && extraction.data) {
+              setReportData(extraction.data);
+            } else {
+              console.error('Failed to validate fetched report data:', extraction.error);
+              setReportError(`Invalid fetched report data: ${extraction.error}`);
+            }
           }
         }
       } catch (error) {
         console.error('Failed to fetch report:', error);
+        setReportError(`Failed to fetch report: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
   };
@@ -86,8 +69,14 @@ export default function ResultsPage() {
       if (response.ok) {
         const reportResponse = await response.json();
         if (reportResponse.success && reportResponse.report) {
-          setReportData(reportResponse.report);
-          setReportError(null);
+          const extraction = safeExtractReportData(reportResponse.report);
+          if (extraction.success && extraction.data) {
+            setReportData(extraction.data);
+            setReportError(null);
+          } else {
+            console.error('Failed to validate fetched report data:', extraction.error);
+            setReportError(`Invalid report data: ${extraction.error}`);
+          }
         } else {
           setReportError('Report not found or not ready yet');
         }
@@ -107,12 +96,19 @@ export default function ResultsPage() {
   };
 
   const handleExportPDF = async () => {
-    if (!reportData) return;
+    if (!reportData) {
+      console.error('No report data available for PDF export');
+      setReportError('No report data available for export');
+      return;
+    }
     
     setIsExportingPDF(true);
+    setReportError(null);
+    
     try {
       // Try the main PDF export first - pass data directly
       await exportReportToPDF(reportData);
+      console.log('PDF export completed successfully');
     } catch (error) {
       console.error('Main PDF export failed:', error);
       
@@ -121,9 +117,12 @@ export default function ResultsPage() {
         console.log('Attempting HTML-to-PDF fallback...');
         const { exportHTMLToPDF } = await import('@/app/lib/pdfExport');
         await exportHTMLToPDF('report-container', `jbi-bias-assessment-${sessionId}.pdf`);
+        console.log('HTML-to-PDF fallback completed successfully');
       } catch (fallbackError) {
         console.error('HTML-to-PDF fallback also failed:', fallbackError);
-        alert(`Failed to export PDF. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        const errorMessage = `PDF export failed: ${error instanceof Error ? error.message : 'Unknown error'}. Fallback also failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`;
+        setReportError(errorMessage);
+        alert(errorMessage);
       }
     } finally {
       setIsExportingPDF(false);

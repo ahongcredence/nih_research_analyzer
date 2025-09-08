@@ -18,88 +18,12 @@ import {
   Cpu,
   BookOpen
 } from "lucide-react";
+import { 
+  Classification, 
+  StudyRecommendation, 
+  ReportData
+} from "@/app/lib/types";
 
-interface JBIQuestion {
-  number: number;
-  question: string;
-  answer: string;
-  reasoning: string;
-  evidence: string[];
-  biasImplication: string;
-  confidence?: number;
-}
-
-interface Classification {
-  fileName: string;
-  studyType: string;
-  confidence: number;
-  reasoning: string;
-}
-
-interface StudyRecommendation {
-  fileName: string;
-  overallAssessment: {
-    biasRating: string;
-    recommendation: string;
-  };
-}
-
-interface AssessmentMetadata {
-  confidence: number;
-  processingTime: string;
-  modelVersion: string;
-}
-
-
-interface ReportData {
-  reportMetadata: {
-    sessionId: string;
-    s3Bucket: string;
-    generatedAt: string;
-    reportType: string;
-    lambdaRequestId: string;
-    bedrockModel: string;
-  };
-  executiveSummary: {
-    overallFindings: string;
-    inclusionRate: string;
-    majorConcerns: string[];
-    keyStrengths: string[];
-    assessmentConfidence: string;
-    nextSteps: string[];
-  };
-  summaryStatistics: {
-    totalStudies: number;
-    successfulAnalyses: number;
-    failedAnalyses: number;
-    studyTypeBreakdown: Record<string, number>;
-    biasRatingDistribution: Record<string, number>;
-    recommendationDistribution: Record<string, number>;
-    inclusionRate: string;
-  };
-  detailedStudyAssessments: Array<{
-    fileName: string;
-    studyType: string;
-    criteriaType: string;
-    overallAssessment: {
-      biasRating: string;
-      recommendation: string;
-      summaryReasoning: string;
-      strengths: string[];
-      weaknesses: string[];
-    };
-    jbiQuestions: JBIQuestion[];
-    assessmentMetadata: AssessmentMetadata;
-    errorDetails?: string;
-  }>;
-  recommendationsByCategory: {
-    highPriorityInclusions: StudyRecommendation[];
-    conditionalInclusions: StudyRecommendation[];
-    needsFurtherReview: StudyRecommendation[];
-    clearExclusions: StudyRecommendation[];
-  };
-  originalClassifications: Classification[];
-}
 
 interface ReportViewerProps {
   reportData: ReportData | string | Record<string, unknown>;
@@ -144,9 +68,13 @@ export default function ReportViewer({ reportData, sessionId }: ReportViewerProp
     console.log('ReportViewer: Normalizing data structure:', data);
     
     // Handle the new JBI bias analysis report structure
-    const isJBIReport = data.reportMetadata?.reportType?.includes('jbi') || 
-                       data.reportType?.includes('jbi') ||
-                       data.detailedStudyAssessments?.length > 0;
+    const reportMetadata = data.reportMetadata as Record<string, unknown> | undefined;
+    const reportType = data.reportType as string | undefined;
+    const detailedStudyAssessments = data.detailedStudyAssessments as unknown[] | undefined;
+    
+    const isJBIReport = (reportMetadata?.reportType && typeof reportMetadata.reportType === 'string' && reportMetadata.reportType.includes('jbi')) || 
+                       (reportType && typeof reportType === 'string' && reportType.includes('jbi')) ||
+                       (detailedStudyAssessments && Array.isArray(detailedStudyAssessments) && detailedStudyAssessments.length > 0);
     
     if (isJBIReport) {
       return {
@@ -524,7 +452,7 @@ export default function ReportViewer({ reportData, sessionId }: ReportViewerProp
         <CardContent className="pt-0">
           <div className="space-y-4">
             {(parsedReportData.detailedStudyAssessments || []).map((analysis, index) => {
-              const studyConfidence = getStudyConfidence(analysis.fileName);
+              const studyConfidence = getStudyConfidence(analysis.fileName || 'unknown');
               const confidenceInfo = getConfidenceLevel(studyConfidence);
               
               return (
@@ -534,23 +462,23 @@ export default function ReportViewer({ reportData, sessionId }: ReportViewerProp
                   <div className="flex items-center space-x-2">
                     <FileText className="h-4 w-4 text-slate-500" />
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-900">{analysis.fileName}</h3>
+                      <h3 className="text-sm font-semibold text-slate-900">{analysis.fileName || 'Unknown File'}</h3>
                       <div className="flex items-center space-x-3 text-xs text-slate-500">
                         <span className="flex items-center">
                           <Users className="h-3 w-3 mr-1" />
-                          {analysis.studyType}
+                          {analysis.studyType || 'Unknown Type'}
                         </span>
                         <span className="flex items-center">
                           <Shield className="h-3 w-3 mr-1" />
-                          {analysis.criteriaType}
+                          {analysis.criteriaType || 'Unknown Criteria'}
                         </span>
                       </div>
                     </div>
                   </div>
                   <div className="text-sm text-slate-600 space-y-1">
                     <div className="flex items-center space-x-4">
-                      <span><strong>Bias Rating:</strong> {analysis.overallAssessment.biasRating}</span>
-                      <span><strong>Recommendation:</strong> {analysis.overallAssessment.recommendation}</span>
+                      <span><strong>Bias Rating:</strong> {analysis.overallAssessment?.biasRating || 'Unknown'}</span>
+                      <span><strong>Recommendation:</strong> {analysis.overallAssessment?.recommendation || 'Unknown'}</span>
                       <span><strong>Confidence:</strong> {getConfidenceScore(studyConfidence)}% ({confidenceInfo.level})</span>
                     </div>
                   </div>
@@ -563,7 +491,7 @@ export default function ReportViewer({ reportData, sessionId }: ReportViewerProp
                     Overall Assessment
                   </h4>
                   <p className="text-slate-700 text-xs leading-relaxed">
-                    {analysis.overallAssessment.summaryReasoning}
+                    {analysis.overallAssessment?.summaryReasoning || 'No reasoning available'}
                   </p>
                 </div>
 
