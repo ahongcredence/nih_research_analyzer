@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
               finalReportKey = key;
               console.log(`Found report at fallback location: ${finalReportKey}`);
               break;
-            } catch (error) {
+            } catch {
               // Continue to next location
               continue;
             }
@@ -120,12 +120,14 @@ export async function GET(request: NextRequest) {
         contentLength: reportResponse.ContentLength,
       });
 
-    } catch (s3Error: any) {
+    } catch (s3Error: unknown) {
       console.error('S3 error:', s3Error);
       console.error('Attempted to fetch report from:', finalReportKey);
       console.error('S3 Bucket:', s3BucketName);
       
-      if (s3Error.name === 'NoSuchKey') {
+      const error = s3Error as { name?: string; message?: string };
+      
+      if (error.name === 'NoSuchKey') {
         return NextResponse.json(
           { 
             error: 'Report not found at the specified location',
@@ -135,7 +137,7 @@ export async function GET(request: NextRequest) {
           },
           { status: 404 }
         );
-      } else if (s3Error.name === 'AccessDenied') {
+      } else if (error.name === 'AccessDenied') {
         return NextResponse.json(
           { error: 'Access denied to the report' },
           { status: 403 }
@@ -144,7 +146,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(
           { 
             error: 'Failed to fetch report from S3',
-            details: s3Error.message,
+            details: error.message || 'Unknown error',
             sessionId: sessionId,
             attemptedKey: finalReportKey
           },

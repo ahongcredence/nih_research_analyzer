@@ -1,8 +1,6 @@
 // Test file for the report API endpoint
 // This is a simple test to verify the report fetching functionality
 
-import { NextRequest } from 'next/server';
-
 // Mock test data
 const mockReportData = {
   reportMetadata: {
@@ -76,7 +74,7 @@ const mockReportData = {
 };
 
 // Test function to validate report structure
-export function validateReportStructure(reportData: any): boolean {
+export function validateReportStructure(reportData: Record<string, unknown>): boolean {
   try {
     // Check required top-level properties
     const requiredProps = ['reportMetadata', 'executiveSummary', 'summaryStatistics', 'detailedStudyAssessments'];

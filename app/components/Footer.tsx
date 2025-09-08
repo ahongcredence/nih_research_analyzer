@@ -27,7 +27,7 @@ interface FooterProps {
 export default function Footer({
   agencyName = "Credence",
   agencyDescription,
-  contactInfo,
+  contactInfo: _contactInfo,
   copyrightText,
   className = "",
 }: Readonly<FooterProps>) {
