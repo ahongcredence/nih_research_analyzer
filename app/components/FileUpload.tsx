@@ -14,8 +14,8 @@ interface FileUploadProps {
 
 export function FileUpload({
   onFilesUploaded,
-  maxFiles = 5,
-  maxSize = 10,
+  maxFiles = 50,
+  maxSize = 20,
   acceptedTypes = [".pdf"]
 }: FileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
